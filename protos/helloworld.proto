@@ -1,0 +1,25 @@
+syntax = "proto3";  // proto buffer version
+
+option go_package = "grpc/protos";
+
+package helloworld;
+
+// 패킷 정의 : 어떤 내용을 요청하고 답변할지 정의
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+  rpc LotsOfReplies (HelloRequest) returns (stream HelloReply) {}
+  rpc LotsOfGreetings (stream HelloRequest) returns (HelloReply) {}
+  rpc BidiHello (stream HelloRequest) returns (stream HelloReply) {}
+
+}
+
+// 클라이언트 요청할 패킷
+message HelloRequest {
+  string name = 1;  // 1 은 메시지 순서값
+}
+
+// 서버 답변 패킷
+message HelloReply {
+  string message = 1;
+}
