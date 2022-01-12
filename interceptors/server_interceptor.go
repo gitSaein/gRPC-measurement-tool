@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/peer"
 
 	"google.golang.org/grpc"
 )
@@ -17,6 +18,11 @@ func CheckHttpHeader(ctx context.Context) {
 	method, _ := grpc.Method(ctx)
 	log.Printf("method: %s", method)
 	md, _ := metadata.FromIncomingContext(ctx)
+	p, ok := peer.FromContext(ctx)
+	if !ok {
+		log.Print("error")
+	}
+	log.Printf("%v", p)
 
 	log.Printf("metadata: %v", md)
 	log.Println("==================  HEADER end  ==================")

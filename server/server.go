@@ -2,28 +2,33 @@ package main
 
 import (
 	"context"
+	"io"
 	"log"
 	"net"
 	"runtime"
+	"strconv"
 	"sync"
 	"time"
 
-	pb "grpc/protos"
-	health_pb "grpc/protos/health"
-	proto "grpc/protos/health"
+	pb "gRPC_measurement_tool/protos"
+	health_pb "gRPC_measurement_tool/protos/health"
+	proto "gRPC_measurement_tool/protos/health"
 
+	"github.com/shirou/gopsutil/cpu"
 	"github.com/vys/go-humanize"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
 
-	interceptor "grpc/interceptors"
+	interceptor "gRPC_measurement_tool/interceptors"
 )
 
 const (
 	port = ":50051"
 )
+
+var listener *net.Listener
 
 // server is used to implement helloworld.GreeterServer.
 type server struct {
@@ -41,8 +46,17 @@ type Server struct {
 func GoRuntimeStats() {
 	m := &runtime.MemStats{}
 	for {
-		time.Sleep(2 * time.Second)
+		percentage, err := cpu.Percent(0, true)
+
+		if err != nil {
+			continue
+		}
+		for idx, cpupercent := range percentage {
+			log.Print("Current CPU " + strconv.Itoa(idx) + " utilization:" + strconv.FormatFloat(cpupercent, 'f', 2, 64) + "%")
+		}
+
 		log.Println("# goroutines: ", runtime.NumGoroutine())
+		log.Println("CPU            : ", runtime.NumCPU())
 		runtime.ReadMemStats(m)
 		log.Println("Memory Acquired: ", humanize.Bytes(m.Sys))
 		log.Println("Memory Used    : ", humanize.Bytes(m.Alloc))
@@ -52,6 +66,9 @@ func GoRuntimeStats() {
 		log.Println("# GC           : ", m.NumGC)
 		log.Println("Last GC time   : ", m.LastGC)
 		log.Println("Next GC        : ", humanize.Bytes(m.NextGC))
+		log.Println("--------------------------------------------")
+		time.Sleep(2 * time.Second)
+
 		//runtime.GC()
 	}
 }
@@ -97,14 +114,46 @@ func NewServer() *Server {
 	}
 }
 
+func ConnHandler(conn net.Conn) {
+	recvBuf := make([]byte, 4096) // receive buffer: 4kB
+	for {
+		n, err := conn.Read(recvBuf)
+		if nil != err {
+			if io.EOF == err {
+				log.Printf("connection is closed from client; %v", conn.RemoteAddr().String())
+				return
+			}
+			log.Printf("fail to receive data; err: %v", err)
+			return
+		}
+		if 0 < n {
+			data := recvBuf[:n]
+			log.Println(string(data))
+		}
+	}
+}
+
 func ListenAndGrpcServer() {
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
+	defer lis.Close()
+	// *listener = lis
+
+	// for {
+	// 	conn, err := lis.Accept()
+	// 	log.Printf("conn: %v", conn)
+	// 	if nil != err {
+	// 		log.Printf("fail to accept; err: %v", err)
+	// 		continue
+	// 	}
+	// 	go ConnHandler(conn)
+	// }
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.UnaryServerInterceptor))
 	srv := NewServer()
+
 	health_pb.RegisterHealthServer(s, srv)
 	reflection.Register(s)
 
@@ -119,7 +168,7 @@ func ListenAndGrpcServer() {
 }
 
 func main() {
-	go GoRuntimeStats()
+	// go GoRuntimeStats()
 	ListenAndGrpcServer()
 
 }

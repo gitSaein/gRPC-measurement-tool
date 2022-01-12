@@ -4,10 +4,14 @@ import (
 	"context"
 	"flag"
 	"log"
+	"os"
+	"strconv"
 	"time"
 
-	pb "grpc/protos"
-	rpc "grpc/rpc"
+	pb "gRPC_measurement_tool/protos"
+	rpc "gRPC_measurement_tool/rpc"
+
+	interceptor "gRPC_measurement_tool/interceptors"
 
 	"google.golang.org/grpc"
 )
@@ -44,33 +48,38 @@ func CheckServerStatus(conn *grpc.ClientConn) {
 
 }
 
+func initialized() []grpc.DialOption {
+	start := time.Now()
+	pid := strconv.Itoa(os.Getpid())
+
+	log.Printf("[client-pid: %v] start at. %s", pid, start)
+
+	opts := []grpc.DialOption{
+		grpc.WithInsecure(),
+		grpc.WithUnaryInterceptor(interceptor.Identity{ID: pid, StartAt: start}.UnaryClient),
+	}
+
+	return opts
+}
+
 func main() {
 
+	opts := initialized()
+
 	// Set up a connection to the server.
-	conn, err := grpc.Dial(address, grpc.WithInsecure(), grpc.WithBlock())
+	conn, err := grpc.Dial(address, opts...)
 	if err != nil {
 		log.Fatalf("did not connect: %v", err)
 	}
 	defer conn.Close() // 프로그램 종료시 conn.Close() 호출
 
-	//server health check
-	client := rpc.NewGrpcHealthClient(conn)
-
-	ok, err := client.Check(context.Background())
-
-	if !ok || err != nil {
-		log.Printf("can't connect grpc server: %v, code: %v\n", err, grpc.Code(err))
-	} else {
-		log.Println("connect the grpc server successfully")
-	}
-
 	c := pb.NewGreeterClient(conn)
-	log.Printf("connected status: %v", conn.GetState())
-	ctx, cancel := context.WithTimeout(context.TODO(), 1*time.Second)
+	ctx, cancel := context.WithTimeout(context.TODO(), 100*time.Second)
 	defer cancel()
 
 	// 서버의 rpc 호출
 	r, err := c.SayHello(ctx, &pb.HelloRequest{Name: name})
+
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
 	}

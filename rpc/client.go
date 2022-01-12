@@ -2,8 +2,8 @@ package rpc
 
 import (
 	"context"
-	pb "grpc/protos/health"
-	proto "grpc/protos/health"
+	pb "gRPC_measurement_tool/protos/health"
+	proto "gRPC_measurement_tool/protos/health"
 	"log"
 
 	"google.golang.org/grpc"
