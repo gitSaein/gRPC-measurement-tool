@@ -32,8 +32,6 @@ func CheckHttpHeader(ctx context.Context) {
 func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
 
-	log.Println("==== [Server Interceptor] ", info.FullMethod)
-
 	CheckHttpHeader(ctx)
 
 	m, err := handler(ctx, req)

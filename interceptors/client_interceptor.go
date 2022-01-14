@@ -11,8 +11,14 @@ import (
 )
 
 type Identity struct {
-	ID      string
+	ID      uint64
 	StartAt time.Time `json:"start_at"`
+}
+
+type ChannelRef struct {
+	State              string
+	SucceededCount     int32
+	TransientFailCount int32
 }
 
 func (i Identity) UnaryClient(
@@ -24,18 +30,23 @@ func (i Identity) UnaryClient(
 	invoker grpc.UnaryInvoker,
 	opts ...grpc.CallOption,
 ) error {
+	log.Printf("[client-pid: %v] server-status: '%s'", i.ID, cc.GetState())
 	md := metadata.Pairs()
-	md.Set("client-pid", i.ID)
-	log.Printf("[client-pid: %v] init server status '%s'", i.ID, cc.GetState())
-	go func() {
-		for {
-			if cc.GetState() == connectivity.Ready {
-				elapsed := time.Since(i.StartAt)
-				log.Printf("[client-pid: %v] changed server status '%s' take-time: %s / at.%v", i.ID, cc.GetState(), elapsed, time.Now())
+
+	for {
+		is_changed_status := cc.WaitForStateChange(ctx, cc.GetState())
+		if is_changed_status {
+			currentState := cc.GetState()
+
+			elapsed := time.Since(i.StartAt)
+			log.Printf("[client-pid: %v] server-status: '%s', take-time: %s, arrive-time: %v", i.ID, currentState, elapsed, time.Now())
+
+			if currentState == connectivity.Ready {
 				break
 			}
 		}
-	}()
+
+	}
 
 	ctx = metadata.NewOutgoingContext(ctx, md)
 	err := invoker(ctx, method, req, reply, cc, opts...)

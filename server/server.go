@@ -139,17 +139,6 @@ func ListenAndGrpcServer() {
 		log.Fatalf("failed to listen: %v", err)
 	}
 	defer lis.Close()
-	// *listener = lis
-
-	// for {
-	// 	conn, err := lis.Accept()
-	// 	log.Printf("conn: %v", conn)
-	// 	if nil != err {
-	// 		log.Printf("fail to accept; err: %v", err)
-	// 		continue
-	// 	}
-	// 	go ConnHandler(conn)
-	// }
 
 	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.UnaryServerInterceptor))
 	srv := NewServer()
@@ -158,7 +147,6 @@ func ListenAndGrpcServer() {
 	reflection.Register(s)
 
 	pb.RegisterGreeterServer(s, &server{}) // helloworld_grpc.pb.go 에 있음
-	// reflection.Register(s)                 // grpcurl 명령을 사용하게 하기 위해
 
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil { //grpc 서버 시작

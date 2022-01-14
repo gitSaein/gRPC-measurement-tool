@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"log"
-	"os"
+	"runtime"
 	"strconv"
+	"sync"
 	"time"
 
 	pb "gRPC_measurement_tool/protos"
@@ -24,6 +26,7 @@ const (
 var (
 	name string
 )
+var count int32
 
 // 프로그램 실행시 호출
 func init() {
@@ -47,24 +50,31 @@ func CheckServerStatus(conn *grpc.ClientConn) {
 	}
 
 }
+func getGID() uint64 {
+	b := make([]byte, 64)
+	b = b[:runtime.Stack(b, false)]
+	b = bytes.TrimPrefix(b, []byte("goroutine "))
+	b = b[:bytes.IndexByte(b, ' ')]
+	n, _ := strconv.ParseUint(string(b), 10, 64)
+	return n
+}
 
-func initialized() []grpc.DialOption {
+func initialized() (uint64, []grpc.DialOption, time.Time) {
 	start := time.Now()
-	pid := strconv.Itoa(os.Getpid())
-
-	log.Printf("[client-pid: %v] start at. %s", pid, start)
+	pid := getGID()
+	log.Printf("[client-pid: %v] arrive-time: %v", pid, start)
 
 	opts := []grpc.DialOption{
 		grpc.WithInsecure(),
 		grpc.WithUnaryInterceptor(interceptor.Identity{ID: pid, StartAt: start}.UnaryClient),
 	}
 
-	return opts
+	return pid, opts, start
 }
 
-func main() {
-
-	opts := initialized()
+func connectServer(wait sync.WaitGroup, done chan bool) {
+	pid, opts, start := initialized()
+	defer wait.Done()
 
 	// Set up a connection to the server.
 	conn, err := grpc.Dial(address, opts...)
@@ -83,7 +93,24 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not greet: %v", err)
 	}
+	elapsed := time.Since(start)
 
-	log.Printf("Greeting: %s", r.GetMessage())
+	log.Printf("[client-pid: %v] message: %s, server-status: '%s', take-time: %v arrive-time: %v", pid, r.GetMessage(), conn.GetState(), elapsed, time.Now())
+
+}
+
+func main() {
+	connect_count := 5
+
+	var wait sync.WaitGroup
+	wait.Add(connect_count)
+
+	done := make(chan bool)
+	for i := 0; i < connect_count; i++ {
+		go connectServer(wait, done)
+	}
+
+	close(done)
+	wait.Wait() //Go루틴 모두 끝날 때까지 대기
 
 }
