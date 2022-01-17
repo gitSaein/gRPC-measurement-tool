@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"context"
+	"crypto/tls"
 	"io"
 	"log"
 	"net"
@@ -16,16 +18,12 @@ import (
 
 	"github.com/shirou/gopsutil/cpu"
 	"github.com/vys/go-humanize"
-	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/reflection"
 	"google.golang.org/grpc/status"
-
-	interceptor "gRPC_measurement_tool/interceptors"
 )
 
 const (
-	port = ":50051"
+	port = ":443"
 )
 
 var listener *net.Listener
@@ -134,25 +132,49 @@ func ConnHandler(conn net.Conn) {
 }
 
 func ListenAndGrpcServer() {
-	lis, err := net.Listen("tcp", port)
+	log.SetFlags(log.Lshortfile)
+
+	cer, err := tls.LoadX509KeyPair("../cert2/server.pem", "../cert2/server.key")
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Fatalf("LoadX509KeyPair failed to listen: %v", err)
 	}
-	defer lis.Close()
+	config := &tls.Config{Certificates: []tls.Certificate{cer}}
+	ln, err := tls.Listen("tcp", ":443", config)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer ln.Close()
 
-	s := grpc.NewServer(grpc.UnaryInterceptor(interceptor.UnaryServerInterceptor))
-	srv := NewServer()
-
-	health_pb.RegisterHealthServer(s, srv)
-	reflection.Register(s)
-
-	pb.RegisterGreeterServer(s, &server{}) // helloworld_grpc.pb.go 에 있음
-
-	log.Printf("server listening at %v", lis.Addr())
-	if err := s.Serve(lis); err != nil { //grpc 서버 시작
-		log.Fatalf("failed to serve: %v", err)
+	for {
+		conn, err := ln.Accept()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		go handleConnection(conn)
 	}
 
+}
+
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	r := bufio.NewReader(conn)
+	for {
+		msg, err := r.ReadString('\n')
+		if err != nil {
+			log.Println(err)
+			return
+		}
+
+		println(msg)
+
+		n, err := conn.Write([]byte("world\n"))
+		if err != nil {
+			log.Println(n, err)
+			return
+		}
+	}
 }
 
 func main() {
