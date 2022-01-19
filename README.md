@@ -15,6 +15,9 @@
 - tls 인증여부    -isTls
 - call method     -call
 
+> go build ./client.go
+> ./client  -tr 10 -timeout 1000 -call helloworld.Greeter.SayHello
+
 
 
 ## Reference
