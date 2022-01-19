@@ -77,13 +77,13 @@ func GoRuntimeStats() {
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
 
 	// deadline
-	for i := 0; i < 5; i++ {
-		if ctx.Err() == context.DeadlineExceeded {
-			return nil, status.Errorf(codes.DeadlineExceeded, "HelloworldService.SayHello DeadlineExceeded")
-		}
+	// for i := 0; i < 5; i++ {
+	// 	if ctx.Err() == context.DeadlineExceeded {
+	// 		return nil, status.Errorf(codes.DeadlineExceeded, "HelloworldService.SayHello DeadlineExceeded")
+	// 	}
 
-		time.Sleep(10 * time.Second)
-	}
+	// 	time.Sleep(10 * time.Second)
+	// }
 
 	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }

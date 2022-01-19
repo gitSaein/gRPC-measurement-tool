@@ -9,6 +9,12 @@
   - **SHUTDOWN**: This channel has started shutting down. Any new RPCs should fail immediately. Pending RPCs may continue running till the application cancels them. Channels may enter this state either because the application explicitly requested a shutdown or if a non-recoverable error has happened during attempts to connect communicate
 
 
+## 측정 데이터
+- total request   -rc
+- timeout         -timeout
+- tls 인증여부    -isTls
+- call method     -call
+
 
 
 ## Reference
