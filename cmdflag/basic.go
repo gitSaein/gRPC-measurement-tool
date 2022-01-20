@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	errorModel "gRPC_measurement_tool/error"
 	"log"
 	"runtime"
 	"strconv"
@@ -11,8 +12,9 @@ import (
 	"time"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials"
 
-	interceptor "gRPC_measurement_tool/interceptors"
+	// interceptor "gRPC_measurement_tool/interceptors"
 	hellowold "gRPC_measurement_tool/protos"
 )
 
@@ -25,24 +27,32 @@ func GetGID() uint64 {
 	return n
 }
 
-func GetInitSetting(cmd Command) (uint64, []grpc.DialOption, time.Time) {
-	start := time.Now()
+func GetInitSetting(cmd Command, startAt time.Time) (uint64, []grpc.DialOption, error) {
 	pid := GetGID()
-	log.Printf("[client-pid: %v] arrive-time: %v", pid, start)
 	var opts []grpc.DialOption
 
 	if cmd.IsTls {
-		opts = []grpc.DialOption{
-			grpc.WithUnaryInterceptor(interceptor.Identity{ID: pid, StartAt: start}.UnaryClient),
-		}
-	} else {
+
+		// rootCACert := "../cert/server.crt"
+		rootCAKey := "C:\\Users\\danal\\go\\src\\gRPC_measurement_tool\\cert\\rootca.key"
+		creds, sslErr := credentials.NewClientTLSFromFile(rootCAKey, "")
+		log.Printf("start TLS setting %v", pid)
+		errorModel.CheckErrorState(sslErr, pid)
+
 		opts = []grpc.DialOption{
 			grpc.WithInsecure(),
-			grpc.WithUnaryInterceptor(interceptor.Identity{ID: pid, StartAt: start}.UnaryClient),
+			grpc.WithTransportCredentials(creds),
 		}
+	} else {
+		// grpc.WithUnaryInterceptor(interceptor.Identity{ID: pid, StartAt: startAt}.UnaryClient),
+		opts = []grpc.DialOption{
+			grpc.WithInsecure(),
+		}
+		log.Printf("start Non TLS setting %v", pid)
+
 	}
 
-	return pid, opts, start
+	return pid, opts, nil
 }
 
 func GetInitTimeout(cmd Command) (context.Context, context.CancelFunc) {

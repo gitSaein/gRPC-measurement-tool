@@ -19,6 +19,9 @@
 > ./client  -tr 10 -timeout 1000 -call helloworld.Greeter.SayHello
 
 
+## Exception 측정
+- 
+
 
 ## Reference
 - https://grpc.github.io/grpc/core/md_doc_connectivity-semantics-and-api.html

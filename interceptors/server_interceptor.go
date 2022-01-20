@@ -6,42 +6,40 @@ import (
 	"time"
 
 	"google.golang.org/grpc/metadata"
-	"google.golang.org/grpc/peer"
 
 	"google.golang.org/grpc"
 )
 
-func CheckHttpHeader(ctx context.Context) {
+type RequestMedatada struct {
+	Pid         string
+	Method      string
+	Authority   string
+	ContentType string
+	UserAgent   string
+}
 
-	log.Println("================== HEADER start ==================")
-
-	method, _ := grpc.Method(ctx)
-	log.Printf("method: %s", method)
+func parseReq(ctx context.Context) *RequestMedatada {
 	md, _ := metadata.FromIncomingContext(ctx)
-	p, ok := peer.FromContext(ctx)
-	if !ok {
-		log.Print("error")
-	}
-	log.Printf("%v", p)
-
-	log.Printf("metadata: %v", md)
-	log.Println("==================  HEADER end  ==================")
-
+	// method, _ := grpc.Method(ctx)
+	pid := md.Get("pid")
+	// authority := md.Get(":authority")[0]
+	// contentType := md.Get("content-type")[0]
+	// userAgent := md.Get("user-agent")[0]
+	log.Printf("%v", pid)
+	return &RequestMedatada{}
 }
 
 func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 	start := time.Now()
 
-	CheckHttpHeader(ctx)
+	parsedReq := parseReq(ctx)
 
 	m, err := handler(ctx, req)
 	if err != nil {
-		log.Printf(" [error] server interceptor handler: %v", err)
+		log.Printf("[client-pid: %s][error] server interceptor handler: %v", parsedReq.Pid, err)
 	}
 
-	log.Printf("Post Proc Message: %s", m)
-
 	elapsed := time.Since(start)
-	log.Printf("take time - %s", elapsed)
+	log.Printf("[client-pid: %s][take-time: %s] %v ", parsedReq.Pid, elapsed, parsedReq)
 	return m, err
 }

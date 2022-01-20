@@ -13,10 +13,10 @@ type Command struct {
 }
 
 func Basic() Command {
-	tr := flag.Int("tr", 1, "total request")          // 명령줄 옵션을 받은 뒤 문자열로 저장
-	timeout := flag.Int("timeout", 0, "timeout (ms)") // 명령줄 옵션을 받은 뒤 정수로 저장
-	isTls := flag.Bool("isTls", false, "tls 인증여부")    // 명령줄 옵션을 받은 뒤 실수로 저장
-	call := flag.String("call", "", "call method")    // 명령줄 옵션을 받은 뒤 불로 저장
+	tr := flag.Int("tr", 1, "total request")                                  // 명령줄 옵션을 받은 뒤 문자열로 저장
+	timeout := flag.Int("timeout", 0, "timeout (ms)")                         // 명령줄 옵션을 받은 뒤 정수로 저장
+	isTls := flag.Bool("isTls", false, "tls 인증여부")                            // 명령줄 옵션을 받은 뒤 실수로 저장
+	call := flag.String("call", "helloworld.Greeter.SayHello", "call method") // 명령줄 옵션을 받은 뒤 불로 저장
 
 	flag.Parse() // 명령줄 옵션의 내용을 각 자료형별로 분석
 

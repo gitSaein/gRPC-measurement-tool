@@ -2,14 +2,17 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"sync"
 	"time"
 
 	cmdflag "gRPC_measurement_tool/cmdflag"
-	rpc "gRPC_measurement_tool/rpc"
+	errorModel "gRPC_measurement_tool/error"
 
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+	"google.golang.org/grpc/metadata"
 )
 
 const (
@@ -20,49 +23,62 @@ const (
 var (
 	name    string
 	command cmdflag.Command
+	startAt time.Time
 )
 
 // 프로그램 실행시 호출
 func init() {
+	startAt = time.Now()
 	command = cmdflag.Basic()
 
 }
 
-func CheckServerStatus(conn *grpc.ClientConn) {
-	client := rpc.NewGrpcHealthClient(conn)
-
+func checkcheck(conn *grpc.ClientConn, ctx context.Context, pid uint64) {
 	for {
-		ok, err := client.Check(context.Background())
+		is_changed_status := conn.WaitForStateChange(ctx, conn.GetState())
+		if is_changed_status {
+			currentState := conn.GetState()
 
-		if !ok || err != nil {
-			log.Panicf("can't connect grpc server: %v, code: %v\n", err, grpc.Code(err))
+			elapsed := time.Since(startAt)
+			log.Printf("[client-pid: %v] server-status: '%s', take-time: %s, arrive-time: %v", pid, currentState, elapsed, time.Now())
+
+			if currentState == connectivity.Ready {
+				break
+			}
+			if currentState == connectivity.Shutdown || currentState == connectivity.TransientFailure {
+				break
+			}
 		}
-	}
 
+	}
 }
 
 func connectServer(wait sync.WaitGroup, done chan bool, cmd cmdflag.Command) {
-	pid, opts, start := cmdflag.GetInitSetting(cmd)
+	pid, opts, err := cmdflag.GetInitSetting(cmd, startAt)
+	errorModel.CheckErrorState(err, pid)
 	defer wait.Done()
 
-	// Set up a connection to the server.
-	conn, err := grpc.Dial(address, opts...)
-	if err != nil {
-		log.Fatalf("did not connect: %v", err)
-	}
-	defer conn.Close() // 프로그램 종료시 conn.Close() 호출
-
 	ctx, cancel := cmdflag.GetInitTimeout(cmd)
+	str := fmt.Sprintf("%v", pid)
+	md := metadata.Pairs("pid", str)
+	ctx = metadata.NewOutgoingContext(ctx, md)
+
 	if cancel != nil {
 		defer cancel()
 	}
-	reply, err := cmdflag.GetInitCall(cmd, conn, ctx)
-	if reply == nil {
-		log.Fatalf("could not greet: %v", err)
-	}
-	elapsed := time.Since(start)
+	// Set up a connection to the server.
+	conn, err := grpc.Dial(address, opts...)
+	defer conn.Close() // 프로그램 종료시 conn.Close() 호출
+	errorModel.CheckErrorState(err, pid)
 
-	log.Printf("[client-pid: %v] message: %s, server-status: '%s', take-time: %v arrive-time: %v", pid, reply.GetMessage(), conn.GetState(), elapsed, time.Now())
+	go checkcheck(conn, ctx, pid)
+
+	reply, err := cmdflag.GetInitCall(cmd, conn, ctx)
+	errorModel.CheckErrorState(err, pid)
+
+	elapsed := time.Since(startAt)
+
+	log.Printf("Result: [client-pid: %v] [take-time: %v] [server-status: '%s'] [message: %s] ", pid, elapsed, conn.GetState(), reply.GetMessage())
 
 }
 
@@ -79,8 +95,8 @@ func main() {
 	for i := 0; i < command.Tr; i++ {
 		go connectServer(wait, done, command)
 	}
-
 	close(done)
+
 	wait.Wait() //Go루틴 모두 끝날 때까지 대기
 
 }
