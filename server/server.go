@@ -7,8 +7,6 @@ import (
 	"sync"
 
 	pb "gRPC_measurement_tool/protos"
-	health_pb "gRPC_measurement_tool/protos/health"
-	proto "gRPC_measurement_tool/protos/health"
 
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -34,17 +32,7 @@ type Server struct {
 	addr            string
 	networkListener net.Listener
 	mu              sync.Mutex
-	statusMap       map[string]health_pb.HealthCheckResponse_ServingStatus
 }
-
-// func checkChannelState(ctx context.Context) {
-// 	context.Background().Done()
-// 	connectCtx, cancel := context.WithDeadline(ctx, time.Duration(2)*time.Millisecond)
-// 	defer cancel()
-// 	if channelz.IsOn() {
-// 		copts.ChannelzParentID = ac.channelzID
-// 	}
-// }
 
 // SayHello implements helloworld.GreeterServer
 func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloReply, error) {
@@ -70,13 +58,6 @@ func (s *server) SayHello(ctx context.Context, in *pb.HelloRequest) (*pb.HelloRe
 	return &pb.HelloReply{Message: "Hello " + in.GetName()}, nil
 }
 
-// NewServer returns a new Server.
-func NewServer() *Server {
-	return &Server{
-		statusMap: make(map[string]proto.HealthCheckResponse_ServingStatus),
-	}
-}
-
 func ListenAndGrpcServer() {
 	lis, err := net.Listen("tcp", port)
 	if err != nil {
@@ -100,7 +81,6 @@ func ListenAndGrpcServer() {
 	s := grpc.NewServer(opts...)
 
 	pb.RegisterGreeterServer(s, &server{}) // helloworld_grpc.pb.go 에 있음
-
 	log.Printf("server listening at %v", lis.Addr())
 	if err := s.Serve(lis); err != nil { //grpc 서버 시작
 		log.Fatalf("failed to serve: %v", err)

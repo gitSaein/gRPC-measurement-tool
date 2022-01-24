@@ -20,13 +20,14 @@ type RequestMedatada struct {
 
 func parseReq(ctx context.Context) *RequestMedatada {
 	md, _ := metadata.FromIncomingContext(ctx)
-	// method, _ := grpc.Method(ctx)
-	pid := md.Get("pid")
-	// authority := md.Get(":authority")[0]
-	// contentType := md.Get("content-type")[0]
-	// userAgent := md.Get("user-agent")[0]
-	log.Printf("%v", pid)
-	return &RequestMedatada{}
+	method, _ := grpc.Method(ctx)
+	pid := md.Get("pid")[0]
+	authority := md.Get(":authority")[0]
+	contentType := md.Get("content-type")[0]
+	userAgent := md.Get("user-agent")[0]
+	rm := &RequestMedatada{pid, method, authority, contentType, userAgent}
+	log.Printf("%v", rm)
+	return rm
 }
 
 func UnaryServerInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
