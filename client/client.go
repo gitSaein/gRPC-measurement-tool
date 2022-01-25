@@ -1,6 +1,9 @@
 package main
 
 import (
+	"fmt"
+	"log"
+	"runtime"
 	"sync"
 	"time"
 
@@ -31,31 +34,33 @@ func init() {
 
 func connectServer(wait *sync.WaitGroup, cmd m.Option, report *m.Report) {
 	pid, opts, err, ctx, cancel := u.SetOption(cmd, startAt, report)
-	report = errorModel.HandleError(err, pid, report, cmd, m.SetOption, startAt)
+	errorModel.HandleReponse(err, pid, report, cmd, m.SetOption, startAt)
 	defer wait.Done()
-	if cancel != nil {
-		defer cancel()
-	}
+	defer cancel()
 
 	// Set up a connection to the server.
 	startAt = time.Now()
-	conn, err := grpc.DialContext(ctx, cmd.IP+":"+cmd.Port, opts...)
-	if conn != nil {
-		defer conn.Close() // 프로그램 종료시 conn.Close() 호출
-	}
-	report = errorModel.HandleError(err, pid, report, cmd, m.Dial, startAt)
+	conn, err := grpc.DialContext(ctx, cmd.Target, opts...)
+	errorModel.HandleReponse(err, pid, report, cmd, m.Dial, startAt)
 
 	// go u.CheckDialConnection(conn, ctx, pid, startAt, report)
 
-	// reply, err := u.CallMethod(cmd, conn, ctx)
-	// report = errorModel.HandleError(err, pid, report, cmd, m.CallMethod)
-	// log.Printf("message: %v", reply.GetMessage())
+	if conn != nil {
+		defer func() {
+			err = conn.Close()
+			errorModel.HandleReponse(err, pid, report, cmd, m.Dial, startAt)
+		}()
 
-	report.Total = time.Since(startAt)
-	m.PrintResult(report, cmd)
+		startAt = time.Now()
+		reply, err := u.CallMethod(cmd, conn, ctx)
+		errorModel.HandleReponse(err, pid, report, cmd, m.CallMethod, startAt)
+		log.Printf("message: %v", reply.GetMessage())
+	}
 }
 
 func main() {
+	runtime.GOMAXPROCS(runtime.NumCPU()) // CPU 개수를 구한 뒤 사용할 최대 CPU 개수 설정
+	fmt.Println(runtime.GOMAXPROCS(0))   // 설정 값 출력
 
 	report := &m.Report{}
 
@@ -66,5 +71,10 @@ func main() {
 		go connectServer(wg, option, report)
 	}
 	wg.Wait() //Go루틴 모두 끝날 때까지 대기
+
+	defer func() {
+		report.Total = time.Since(startAt)
+		m.PrintResult(report, option)
+	}()
 
 }

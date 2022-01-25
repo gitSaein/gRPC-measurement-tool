@@ -13,11 +13,11 @@ type Option struct {
 	Timeout time.Duration
 	IsTls   bool
 	Call    string
-	IP      string
-	Port    string
+	Target  string
 }
 
 type ErrorStatus struct {
+	Pid uint64
 	// The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
 	Code int32 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	// A developer-facing error message, which should be in English. Any
@@ -52,6 +52,7 @@ const (
 )
 
 type ResponseState struct {
+	Pid      uint64
 	Status   string
 	Process  Process
 	Duration time.Duration
@@ -70,23 +71,21 @@ type Report struct {
 func PrintResult(report *Report, cmd Option) {
 	fmt.Println()
 	fmt.Println("Summary:")
-	fmt.Printf("  Pid: %v\n", report.Pid)
-	fmt.Printf("  Target: %v\n", cmd.IP+":"+cmd.Port)
+	fmt.Printf("  Target: %v\n", cmd.Target)
 	fmt.Printf("  Total: %v\n", report.Total)
 	fmt.Println("  Options:")
 	fmt.Printf("     tls: %v\n", cmd.IsTls)
 	fmt.Printf("     call: %v\n", cmd.Call)
 	fmt.Printf("     requests: %v\n", cmd.Tr)
 	fmt.Printf("     timeout: %v\n", cmd.Timeout*time.Millisecond)
-	fmt.Printf("  StartTime: %v\n", report.StartTime)
 
 	fmt.Println()
 
 	if len(report.ResponseState) > 0 {
 		fmt.Println("Process Tracking:")
-		fmt.Println("  State      process         duration")
+		fmt.Println("  Pid   State          process         duration")
 		for _, state := range report.ResponseState {
-			fmt.Printf("  [%v]       %v         %v\n", state.Status, state.Process, state.Duration)
+			fmt.Printf("  %-5v  [%-5v]       %-5v         %-5v\n", state.Pid, state.Status, state.Process, state.Duration)
 		}
 	}
 	fmt.Println()
@@ -102,9 +101,9 @@ func PrintResult(report *Report, cmd Option) {
 
 	if len(report.Errors) > 0 {
 		fmt.Println("Error Description:")
-		fmt.Println("  code      message:")
+		fmt.Println("  Pid      code         message:")
 		for _, state := range report.Errors {
-			fmt.Printf("  [%v]       %v\n", state.Code, state.Message)
+			fmt.Printf("  %-5v   [%-5v]       %-5v\n", state.Pid, state.Code, state.Message)
 		}
 	}
 	fmt.Println()
