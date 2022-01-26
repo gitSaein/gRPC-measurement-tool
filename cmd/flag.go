@@ -18,7 +18,7 @@ func Basic() m.Option {
 	// 	flag.Usage() // 명령줄 옵션 기본 사용법 출력
 	// }
 
-	cmd := &m.Option{*tr, *timeout, *isTls, *call, *target}
+	cmd := &m.Option{Tr: *tr, Timeout: *timeout, IsTls: *isTls, Call: *call, Target: *target}
 
 	return *cmd
 }
