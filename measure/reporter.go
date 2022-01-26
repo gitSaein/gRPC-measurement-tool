@@ -48,7 +48,8 @@ type Process string
 const (
 	SetOption  = Process("SetOption")
 	CallMethod = Process("CallMethod")
-	Dial       = Process("Dial")
+	DialOpen   = Process("DialOpen")
+	DialClose  = Process("DialClose")
 )
 
 type ResponseState struct {
@@ -83,9 +84,9 @@ func PrintResult(report *Report, cmd Option) {
 
 	if len(report.ResponseState) > 0 {
 		fmt.Println("Process Tracking:")
-		fmt.Println("  Pid   State          process         duration")
+		fmt.Println("  Pid      State   Process            Duration")
 		for _, state := range report.ResponseState {
-			fmt.Printf("  %-5v  [%-5v]       %-5v         %-5v\n", state.Pid, state.Status, state.Process, state.Duration)
+			fmt.Printf("  [%-5v]  [%-5v] [%-15v]  %-5v\n", state.Pid, state.Status, state.Process, state.Duration)
 		}
 	}
 	fmt.Println()

@@ -65,7 +65,6 @@ func SetOption(option m.Option, startAt time.Time, report *m.Report) (uint64, []
 		}
 
 		opts = []grpc.DialOption{
-			grpc.WithInsecure(),
 			grpc.WithTransportCredentials(creds),
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithBlock(),
@@ -76,6 +75,7 @@ func SetOption(option m.Option, startAt time.Time, report *m.Report) (uint64, []
 			grpc.WithInsecure(),
 			grpc.FailOnNonTempDialError(true),
 			grpc.WithBlock(),
+			// grpc.WithStatsHandler(&statsHandler{results: rChan}),
 		}
 
 	}
