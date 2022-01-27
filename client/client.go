@@ -8,9 +8,9 @@ import (
 	"time"
 
 	c "gRPC_measurement_tool/cmd"
+	u "gRPC_measurement_tool/config"
 	errorModel "gRPC_measurement_tool/handler"
 	m "gRPC_measurement_tool/measure"
-	u "gRPC_measurement_tool/util"
 
 	"google.golang.org/grpc"
 )
@@ -32,30 +32,28 @@ func init() {
 	option = c.Basic()
 }
 
-func connectServer(wait *sync.WaitGroup, cmd m.Option, report *m.Report) {
-	pid, opts, err, ctx, cancel := u.SetOption(cmd, startAt, report)
-	errorModel.HandleReponse(err, pid, report, cmd, m.SetOption, startAt)
+func job() {
+
+}
+
+func Worker(wait *sync.WaitGroup, cmd m.Option, report *m.Report) {
+	wid, opts, err, ctx, cancel := u.SetOption(cmd, startAt, report)
+	errorModel.HandleReponse(err, wid, report, cmd, m.SetOption, startAt)
 	defer wait.Done()
 	defer cancel()
 
 	// Set up a connection to the server.
 	startAt = time.Now()
 	conn, err := grpc.DialContext(ctx, cmd.Target, opts...)
-	errorModel.HandleReponse(err, pid, report, cmd, m.DialOpen, startAt)
-
-	// go u.CheckDialConnection(conn, ctx, pid, startAt, report)
+	errorModel.HandleReponse(err, wid, report, cmd, m.DialOpen, startAt)
 
 	if conn != nil {
 		defer func() {
 			startAt = time.Now()
 			err = conn.Close()
-			errorModel.HandleReponse(err, pid, report, cmd, m.DialClose, startAt)
+			errorModel.HandleReponse(err, wid, report, cmd, m.DialClose, startAt)
 		}()
 
-		// startAt = time.Now()
-		// reply, err := u.CallMethod(cmd, conn, ctx)
-		// errorModel.HandleReponse(err, pid, report, cmd, m.CallMethod, startAt)
-		// log.Printf("message: %v", reply.GetMessage())
 	}
 }
 
@@ -75,23 +73,22 @@ func main() {
 	tick := time.Tick(1 * time.Second)
 	boom := time.After(10 * time.Second)
 
-	for {
-		select {
-		case <-tick:
-			log.Println("tick")
+	select {
+	case <-tick:
+		log.Println("tick")
 
-			wg := new(sync.WaitGroup)
-			wg.Add(option.Tr)
+		wg := new(sync.WaitGroup)
+		wg.Add(option.WorkerCnt)
 
-			for i := 0; i < option.Tr; i++ {
-				go connectServer(wg, option, report)
-			}
-
-			wg.Wait() //Go루틴 모두 끝날 때까지 대기
-
-		case <-boom:
-			log.Println("BOOM!")
-			return
+		for i := 0; i < option.WorkerCnt; i++ {
+			go Worker(wg, option, report)
 		}
+
+		wg.Wait() //Go루틴 모두 끝날 때까지 대기
+
+	case <-boom:
+		log.Println("BOOM!")
+		return
 	}
+
 }

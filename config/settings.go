@@ -1,4 +1,4 @@
-package util
+package config
 
 import (
 	"bytes"
@@ -21,7 +21,7 @@ import (
 	hellowold "gRPC_measurement_tool/protos"
 )
 
-func CheckDialConnection(conn *grpc.ClientConn, ctx context.Context, pid uint64, startAt time.Time, report *m.Report) {
+func CheckDialConnection(conn *grpc.ClientConn, ctx context.Context, wid uint64, startAt time.Time, report *m.Report) {
 	for {
 		is_changed_status := conn.WaitForStateChange(ctx, conn.GetState())
 		if is_changed_status {
@@ -40,7 +40,7 @@ func CheckDialConnection(conn *grpc.ClientConn, ctx context.Context, pid uint64,
 	}
 }
 
-func GetGID() uint64 {
+func getWorkerID() uint64 {
 	b := make([]byte, 64)
 	b = b[:runtime.Stack(b, false)]
 	b = bytes.TrimPrefix(b, []byte("goroutine "))
@@ -50,10 +50,10 @@ func GetGID() uint64 {
 }
 
 func SetOption(option m.Option, startAt time.Time, report *m.Report) (uint64, []grpc.DialOption, error, context.Context, context.CancelFunc) {
-
-	pid := GetGID()
-	report.Pid = pid
 	var opts []grpc.DialOption
+
+	wid := getWorkerID()
+	report.Wid = wid
 	report.StartTime = startAt
 
 	if option.IsTls {
@@ -61,7 +61,7 @@ func SetOption(option m.Option, startAt time.Time, report *m.Report) (uint64, []
 		rootCACert := "../cert/server.crt"
 		creds, err := credentials.NewClientTLSFromFile(rootCACert, "")
 		if err != nil {
-			return pid, opts, err, nil, nil
+			return wid, opts, err, nil, nil
 		}
 
 		opts = []grpc.DialOption{
@@ -70,7 +70,7 @@ func SetOption(option m.Option, startAt time.Time, report *m.Report) (uint64, []
 			grpc.WithBlock(),
 		}
 	} else {
-		// grpc.WithUnaryInterceptor(interceptor.Identity{ID: pid, StartAt: startAt}.UnaryClient),
+		// grpc.WithUnaryInterceptor(interceptor.Identity{ID: wid, StartAt: startAt}.UnaryClient),
 		opts = []grpc.DialOption{
 			grpc.WithInsecure(),
 			grpc.FailOnNonTempDialError(true),
@@ -79,17 +79,17 @@ func SetOption(option m.Option, startAt time.Time, report *m.Report) (uint64, []
 		}
 
 	}
-	ctx, cancel := setTimeout(option, pid)
+	ctx, cancel := setTimeout(option, wid)
 
-	return pid, opts, nil, ctx, cancel
+	return wid, opts, nil, ctx, cancel
 }
 
-func setTimeout(option m.Option, pid uint64) (context.Context, context.CancelFunc) {
+func setTimeout(option m.Option, wid uint64) (context.Context, context.CancelFunc) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(option.Timeout)*time.Millisecond)
 
-	str := fmt.Sprintf("%v", pid)
-	md := metadata.Pairs("pid", str)
+	str := fmt.Sprintf("%v", wid)
+	md := metadata.Pairs("wid", str)
 	ctx = metadata.NewOutgoingContext(ctx, md)
 
 	return ctx, cancel

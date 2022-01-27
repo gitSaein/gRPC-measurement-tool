@@ -6,11 +6,15 @@ import (
 )
 
 func Basic() m.Option {
-	tr := flag.Int("tr", 1, "total request")
+
+	rt := flag.Int("rt", 1, "request Total count")
+	rps := flag.Int("rps", 1, "rps")
 	timeout := flag.Duration("timeout", 5000, "timeout (ms)")
+	loadMaxDuration := flag.Duration("load-max-duration", 0, "load max duration ")
 	isTls := flag.Bool("isTls", false, "tls 인증여부")
 	call := flag.String("call", "", "call method")
 	target := flag.String("target", "localhost:50051", "target")
+	w := flag.Int("w", 1, "total worker")
 
 	flag.Parse() // 명령줄 옵션의 내용을 각 자료형별로 분석
 
@@ -18,7 +22,16 @@ func Basic() m.Option {
 	// 	flag.Usage() // 명령줄 옵션 기본 사용법 출력
 	// }
 
-	cmd := &m.Option{Tr: *tr, Timeout: *timeout, IsTls: *isTls, Call: *call, Target: *target}
+	cmd := &m.Option{
+		RT:              *rt,
+		RPS:             *rps,
+		WorkerCnt:       *w,
+		Timeout:         *timeout,
+		LoadMaxDuration: *loadMaxDuration,
+		IsTls:           *isTls,
+		Call:            *call,
+		Target:          *target,
+	}
 
 	return *cmd
 }

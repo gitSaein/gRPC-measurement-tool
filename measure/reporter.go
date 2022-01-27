@@ -9,15 +9,18 @@ import (
 )
 
 type Option struct {
-	Tr      int
-	Timeout time.Duration
-	IsTls   bool
-	Call    string
-	Target  string
+	RT              int
+	WorkerCnt       int
+	Timeout         time.Duration
+	LoadMaxDuration time.Duration
+	IsTls           bool
+	Call            string
+	Target          string
+	RPS             int
 }
 
 type ErrorStatus struct {
-	Pid uint64
+	Wid uint64
 	// The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
 	Code int32 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	// A developer-facing error message, which should be in English. Any
@@ -53,14 +56,14 @@ const (
 )
 
 type ResponseState struct {
-	Pid      uint64
+	Wid      uint64
 	Status   string
 	Process  Process
 	Duration time.Duration
 }
 
 type Report struct {
-	Pid           uint64
+	Wid           uint64
 	StartTime     time.Time
 	EndTime       time.Time
 	Total         time.Duration
@@ -75,10 +78,7 @@ func PrintResult(report *Report, cmd Option) {
 	fmt.Printf("  Target: %v\n", cmd.Target)
 	fmt.Printf("  Total: %v\n", report.Total)
 	fmt.Println("  Options:")
-	fmt.Printf("     tls: %v\n", cmd.IsTls)
-	fmt.Printf("     call: %v\n", cmd.Call)
-	fmt.Printf("     requests: %v\n", cmd.Tr)
-	fmt.Printf("     timeout: %v\n", cmd.Timeout*time.Millisecond)
+	fmt.Printf("     %v\n", cmd)
 
 	fmt.Println()
 
@@ -86,7 +86,7 @@ func PrintResult(report *Report, cmd Option) {
 		fmt.Println("Process Tracking:")
 		fmt.Println("  Pid      State   Process            Duration")
 		for _, state := range report.ResponseState {
-			fmt.Printf("  [%-5v]  [%-5v] [%-15v]  %-5v\n", state.Pid, state.Status, state.Process, state.Duration)
+			fmt.Printf("  [%-5v]  [%-5v] [%-15v]  %-5v\n", state.Wid, state.Status, state.Process, state.Duration)
 		}
 	}
 	fmt.Println()
@@ -104,7 +104,7 @@ func PrintResult(report *Report, cmd Option) {
 		fmt.Println("Error Description:")
 		fmt.Println("  Pid      code         message:")
 		for _, state := range report.Errors {
-			fmt.Printf("  %-5v   [%-5v]       %-5v\n", state.Pid, state.Code, state.Message)
+			fmt.Printf("  %-5v   [%-5v]       %-5v\n", state.Wid, state.Code, state.Message)
 		}
 	}
 	fmt.Println()

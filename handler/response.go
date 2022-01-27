@@ -8,21 +8,21 @@ import (
 	m "gRPC_measurement_tool/measure"
 )
 
-func HandleReponse(err error, pid uint64, report *m.Report, option m.Option, p m.Process, startAt time.Time) {
+func HandleReponse(err error, wid uint64, report *m.Report, option m.Option, p m.Process, startAt time.Time) {
 	if err != nil {
-		handleError(err, pid, report, option, p, startAt)
+		handleError(err, wid, report, option, p, startAt)
 	} else {
-		handleOk(err, pid, report, option, p, startAt)
+		handleOk(err, wid, report, option, p, startAt)
 	}
 }
 
-func handleError(err error, pid uint64, report *m.Report, option m.Option, p m.Process, startAt time.Time) *m.Report {
+func handleError(err error, wid uint64, report *m.Report, option m.Option, p m.Process, startAt time.Time) *m.Report {
 
 	errorStatus := &m.ErrorStatus{}
 
 	st, _ := status.FromError(err)
 
-	errorStatus.Pid = pid
+	errorStatus.Wid = wid
 	errorStatus.Code = st.Proto().Code
 	errorStatus.Message = st.Proto().Message
 	errorStatus.Details = st.Proto().Details
@@ -30,7 +30,7 @@ func handleError(err error, pid uint64, report *m.Report, option m.Option, p m.P
 	report.Errors = append(report.Errors, errorStatus)
 
 	response := &m.ResponseState{}
-	response.Pid = pid
+	response.Wid = wid
 	response.Status = string(m.ERROR)
 	response.Process = p
 	response.Duration = time.Since(startAt)
@@ -40,10 +40,10 @@ func handleError(err error, pid uint64, report *m.Report, option m.Option, p m.P
 
 }
 
-func handleOk(err error, pid uint64, report *m.Report, option m.Option, p m.Process, startAt time.Time) *m.Report {
+func handleOk(err error, wid uint64, report *m.Report, option m.Option, p m.Process, startAt time.Time) *m.Report {
 	response := &m.ResponseState{}
 
-	response.Pid = pid
+	response.Wid = wid
 	response.Status = string(m.OK)
 	response.Process = p
 	response.Duration = time.Since(startAt)
