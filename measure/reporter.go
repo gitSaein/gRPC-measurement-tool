@@ -2,6 +2,7 @@ package measure
 
 import (
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/golang/protobuf/ptypes/any"
@@ -62,11 +63,12 @@ type Worker struct {
 	Duration time.Duration
 }
 type Job struct {
-	JId      uint64
-	States   *ConnectState
-	Errors   []*ErrorStatus
-	Process  []*Process
-	Duration time.Duration
+	JId       uint64
+	States    *ConnectState
+	Errors    []*ErrorStatus
+	Process   []*Process
+	Duration  time.Duration
+	TimeStamp time.Time
 }
 
 type Process struct {
@@ -80,7 +82,10 @@ type ErrorResult struct {
 	Errors []*ErrorStatus
 }
 
-type Histogram struct {
+type HistogramData struct {
+	WId       uint64
+	JId       uint64
+	Timestamp time.Time
 }
 
 type Report struct {
@@ -94,13 +99,13 @@ type Report struct {
 	SuccessCnt  int
 	Workers     []*Worker
 	States      []*ConnectState
+	Histogram   []*HistogramData
 }
 
 func PrintResult(report *Report, cmd Option) {
 
 	minMaxAverage(report)
 	CheckResultCnt(report)
-	fmt.Println()
 	fmt.Println("Summary:")
 	fmt.Printf("  Target: %v\n", cmd.Target)
 	fmt.Printf("  RequestCount: %v\n", cmd.RT)
@@ -115,30 +120,30 @@ func PrintResult(report *Report, cmd Option) {
 	// 	cmd.RT, cmd.WorkerCnt, cmd.Timeout, cmd.LoadMaxDuration, cmd.IsTls, cmd.Call, cmd.Target, cmd.RPS)
 	fmt.Println()
 
-	if len(report.Workers) > 0 {
-		fmt.Println("Process Tracking:")
-		fmt.Println("  Worker    Job    State   Process            Duration")
-		for _, worker := range report.Workers {
-			fmt.Printf("  [%-5v] %-5v\n", worker.WId, worker.Duration)
-			for _, job := range worker.Jobs {
-				fmt.Printf("  [%-5v] [%-5v]  %-5v\n", worker.WId, job.JId, job.Duration)
-				for _, process := range job.Process {
-					fmt.Printf("  [%-5v] [%-5v] [%-5v] [%-15v]  %-5v\n", worker.WId, job.JId, process.Status, process.Name, process.Duration)
-				}
-			}
-		}
+	// if len(report.Workers) > 0 {
+	// 	fmt.Println("Process Tracking:")
+	// 	fmt.Println("  Worker    Job    State   Process            Duration")
+	// 	for _, worker := range report.Workers {
+	// 		fmt.Printf("  [%-5v] %-5v\n", worker.WId, worker.Duration)
+	// 		for _, job := range worker.Jobs {
+	// 			fmt.Printf("  [%-5v] [%-5v]  %-5v\n", worker.WId, job.JId, job.Duration)
+	// 			for _, process := range job.Process {
+	// 				fmt.Printf("  [%-5v] [%-5v] [%-5v] [%-15v]  %-5v\n", worker.WId, job.JId, process.Status, process.Name, process.Duration)
+	// 			}
+	// 		}
+	// 	}
 
-	}
-	fmt.Println()
+	// }
+	// fmt.Println()
 
-	if len(report.States) > 0 {
-		fmt.Println("Dial State Trace:")
-		fmt.Println("  State       duration:")
-		for _, state := range report.States {
-			fmt.Printf("  [%v]       %v\n", state.ConnectState, state.Duration)
-		}
-	}
-	fmt.Println()
+	// if len(report.States) > 0 {
+	// 	fmt.Println("Dial State Trace:")
+	// 	fmt.Println("  State       duration:")
+	// 	for _, state := range report.States {
+	// 		fmt.Printf("  [%v]       %v\n", state.ConnectState, state.Duration)
+	// 	}
+	// }
+	// fmt.Println()
 
 	if report.ErrorResult.Count > 0 {
 		fmt.Println("Errors:")
@@ -148,5 +153,28 @@ func PrintResult(report *Report, cmd Option) {
 		}
 	}
 	fmt.Println()
+
+	makeHistogramData(report)
+
+	// for _, h := range report.Histogram {
+
+	// }
+
+	okLats := make([]float64, 0)
+	for _, d := range report.Histogram {
+		okLats = append(okLats, float64(d.Timestamp.Second()))
+	}
+
+	sort.Float64s(okLats)
+
+	if len(okLats) > 0 {
+		var fastestNum, slowestNum float64
+		fastestNum = okLats[0]
+		slowestNum = okLats[len(okLats)-1]
+
+		histogramRet := histogram(okLats, slowestNum, fastestNum)
+		fmt.Printf("Response time histogram:\n")
+		fmt.Printf("%s", histogramPrintString(histogramRet))
+	}
 
 }

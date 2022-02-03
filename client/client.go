@@ -41,7 +41,8 @@ func job(wait *sync.WaitGroup, cmd m.Option, worker *m.Worker) {
 		wait.Done()
 		setting.CancelFunc()
 		job.Duration = time.Since(startAt)
-		// log.Printf("wid: %v jid: %v \n", worker.WId, job.JId)
+		job.TimeStamp = time.Now()
+		// log.Printf("wid: %v jid: %v  %s\n", worker.WId, job.JId, job.TimeStamp)
 	}()
 
 	// Set up a connection to the server.
@@ -96,8 +97,6 @@ func WorkerWithTickerJob(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
 	for {
 		select {
 		case <-tick:
-			log.Println("tick")
-
 			wg := new(sync.WaitGroup)
 			wg.Add(option.RPS)
 
@@ -108,7 +107,6 @@ func WorkerWithTickerJob(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
 			wg.Wait() //Go루틴 모두 끝날 때까지 대기
 
 		case <-end:
-			log.Println("END!")
 			return
 		}
 	}
