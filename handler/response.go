@@ -13,6 +13,7 @@ func HandleReponse(err error, worker *m.Worker, job *m.Job, option m.Option, p m
 		st, _ := status.FromError(err)
 		job.Errors = append(job.Errors, &m.ErrorStatus{
 			Wid:       worker.WId,
+			Jid:       job.JId,
 			Code:      st.Proto().Code,
 			Message:   st.Proto().Message,
 			Details:   st.Proto().Details,

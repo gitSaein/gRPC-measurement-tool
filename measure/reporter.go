@@ -21,6 +21,7 @@ type Option struct {
 
 type ErrorStatus struct {
 	Wid uint64
+	Jid uint64
 	// The status code, which should be an enum value of [google.rpc.Code][google.rpc.Code].
 	Code int32 `protobuf:"varint,1,opt,name=code,proto3" json:"code,omitempty"`
 	// A developer-facing error message, which should be in English. Any
@@ -60,13 +61,6 @@ type Worker struct {
 	Jobs     []*Job
 	Duration time.Duration
 }
-
-type Process struct {
-	Name     ProcessName
-	Status   string
-	Duration time.Duration
-}
-
 type Job struct {
 	JId      uint64
 	States   *ConnectState
@@ -75,31 +69,60 @@ type Job struct {
 	Duration time.Duration
 }
 
+type Process struct {
+	Name     ProcessName
+	Status   string
+	Duration time.Duration
+}
+
+type ErrorResult struct {
+	Count  int
+	Errors []*ErrorStatus
+}
+
+type Histogram struct {
+}
+
 type Report struct {
-	Wid       uint64
-	StartTime time.Time
-	EndTime   time.Time
-	Total     time.Duration
-	States    []*ConnectState
-	Workers   []*Worker
-	Errors    []*ErrorStatus
+	StartTime   time.Time
+	EndTime     time.Time
+	Total       time.Duration
+	Min         time.Duration
+	Max         time.Duration
+	Avg         time.Duration
+	ErrorResult ErrorResult
+	SuccessCnt  int
+	Workers     []*Worker
+	States      []*ConnectState
 }
 
 func PrintResult(report *Report, cmd Option) {
+
+	minMaxAverage(report)
+
 	fmt.Println()
 	fmt.Println("Summary:")
 	fmt.Printf("  Target: %v\n", cmd.Target)
+	fmt.Printf("  RequestCount: %v\n", cmd.RT)
 	fmt.Printf("  Total: %v\n", report.Total)
-	fmt.Println("  Options:")
-	fmt.Printf("     rt: %v\n     w: %v\n     timeout: %v\n     load-max-duration: %v\n     isTls: %v\n     call: %v\n     target: %v\n     rps: %v\n   ",
-		cmd.RT, cmd.WorkerCnt, cmd.Timeout, cmd.LoadMaxDuration, cmd.IsTls, cmd.Call, cmd.Target, cmd.RPS)
+	fmt.Println(" Request latency:")
+	fmt.Printf("   Min: %v\n", report.Min)
+	fmt.Printf("   Max: %v\n", report.Max)
+	fmt.Printf("   Avg: %v\n", report.Avg)
+
+	// fmt.Println("  Options:")
+	// fmt.Printf("     rt: %v\n     w: %v\n     timeout: %v\n     load-max-duration: %v\n     isTls: %v\n     call: %v\n     target: %v\n     rps: %v\n   ",
+	// 	cmd.RT, cmd.WorkerCnt, cmd.Timeout, cmd.LoadMaxDuration, cmd.IsTls, cmd.Call, cmd.Target, cmd.RPS)
 	fmt.Println()
 
 	if len(report.Workers) > 0 {
 		fmt.Println("Process Tracking:")
 		fmt.Println("  Worker    Job    State   Process            Duration")
 		for _, worker := range report.Workers {
+			fmt.Printf("  [%-5v] %-5v\n", worker.WId, worker.Duration)
 			for _, job := range worker.Jobs {
+				CheckResultCnt(report, worker, job)
+				fmt.Printf("  [%-5v] [%-5v]  %-5v\n", worker.WId, job.JId, job.Duration)
 				for _, process := range job.Process {
 					fmt.Printf("  [%-5v] [%-5v] [%-5v] [%-15v]  %-5v\n", worker.WId, job.JId, process.Status, process.Name, process.Duration)
 				}
@@ -109,20 +132,20 @@ func PrintResult(report *Report, cmd Option) {
 	}
 	fmt.Println()
 
-	if len(report.States) > 0 {
-		fmt.Println("Dial State Trace:")
-		fmt.Println("  State       duration:")
-		for _, state := range report.States {
-			fmt.Printf("  [%v]       %v\n", state.ConnectState, state.Duration)
-		}
-	}
-	fmt.Println()
+	// if len(report.States) > 0 {
+	// 	fmt.Println("Dial State Trace:")
+	// 	fmt.Println("  State       duration:")
+	// 	for _, state := range report.States {
+	// 		fmt.Printf("  [%v]       %v\n", state.ConnectState, state.Duration)
+	// 	}
+	// }
+	// fmt.Println()
 
-	if len(report.Errors) > 0 {
+	if report.ErrorResult.Count > 0 {
 		fmt.Println("Error Description:")
-		fmt.Println("  Worker      code         message:")
-		for _, state := range report.Errors {
-			fmt.Printf("  %-5v   [%-5v]       %-5v\n", state.Wid, state.Code, state.Message)
+		fmt.Println("  Code       message:")
+		for _, state := range report.ErrorResult.Errors {
+			fmt.Printf("  [%-5v]    %-5v\n", state.Code, state.Message)
 		}
 	}
 	fmt.Println()
