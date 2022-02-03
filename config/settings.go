@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"fmt"
 
 	m "gRPC_measurement_tool/measure"
 
@@ -16,10 +15,16 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
-	"google.golang.org/grpc/metadata"
 
 	hellowold "gRPC_measurement_tool/protos"
 )
+
+type Setting struct {
+	Options    []grpc.DialOption
+	Error      error
+	Context    context.Context
+	CancelFunc context.CancelFunc
+}
 
 func CheckDialConnection(conn *grpc.ClientConn, ctx context.Context, wid uint64, startAt time.Time, report *m.Report) {
 	for {
@@ -40,7 +45,7 @@ func CheckDialConnection(conn *grpc.ClientConn, ctx context.Context, wid uint64,
 	}
 }
 
-func getWorkerID() uint64 {
+func GetID() uint64 {
 	b := make([]byte, 64)
 	b = b[:runtime.Stack(b, false)]
 	b = bytes.TrimPrefix(b, []byte("goroutine "))
@@ -49,51 +54,41 @@ func getWorkerID() uint64 {
 	return n
 }
 
-func SetOption(option m.Option, startAt time.Time, report *m.Report) (uint64, []grpc.DialOption, error, context.Context, context.CancelFunc) {
-	var opts []grpc.DialOption
-
-	wid := getWorkerID()
-	report.Wid = wid
-	report.StartTime = startAt
+func SettingOptions(option m.Option) *Setting {
+	setting := &Setting{}
 
 	if option.IsTls {
 
 		rootCACert := "../cert/server.crt"
 		creds, err := credentials.NewClientTLSFromFile(rootCACert, "")
 		if err != nil {
-			return wid, opts, err, nil, nil
+			return &Setting{Error: err}
 		}
+		setting.Options = append(setting.Options, grpc.WithTransportCredentials(creds))
+		setting.Options = append(setting.Options, grpc.FailOnNonTempDialError(true))
+		setting.Options = append(setting.Options, grpc.WithBlock())
 
-		opts = []grpc.DialOption{
-			grpc.WithTransportCredentials(creds),
-			grpc.FailOnNonTempDialError(true),
-			grpc.WithBlock(),
-		}
 	} else {
 		// grpc.WithUnaryInterceptor(interceptor.Identity{ID: wid, StartAt: startAt}.UnaryClient),
-		opts = []grpc.DialOption{
-			grpc.WithInsecure(),
-			grpc.FailOnNonTempDialError(true),
-			grpc.WithBlock(),
-			// grpc.WithStatsHandler(&statsHandler{results: rChan}),
-		}
+		setting.Options = append(setting.Options, grpc.WithInsecure())
+		setting.Options = append(setting.Options, grpc.FailOnNonTempDialError(true))
+		setting.Options = append(setting.Options, grpc.WithBlock())
+		// grpc.WithStatsHandler(&statsHandler{results: rChan}),
 
 	}
-	ctx, cancel := setTimeout(option, wid)
 
-	return wid, opts, nil, ctx, cancel
-}
+	if option.Timeout > 0 {
+		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(option.Timeout)*time.Millisecond)
+		setting.Context = ctx
+		setting.CancelFunc = cancel
+	} else {
+		ctx, cancel := context.WithCancel(context.Background())
+		setting.Context = ctx
+		setting.CancelFunc = cancel
 
-func setTimeout(option m.Option, wid uint64) (context.Context, context.CancelFunc) {
+	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(option.Timeout)*time.Millisecond)
-
-	str := fmt.Sprintf("%v", wid)
-	md := metadata.Pairs("wid", str)
-	ctx = metadata.NewOutgoingContext(ctx, md)
-
-	return ctx, cancel
-
+	return setting
 }
 
 func CallMethod(option m.Option, conn *grpc.ClientConn, ctx context.Context) (*hellowold.HelloReply, error) {

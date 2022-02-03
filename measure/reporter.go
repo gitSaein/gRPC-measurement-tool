@@ -46,30 +46,43 @@ const (
 	ERROR = Status("ERROR")
 )
 
-type Process string
+type ProcessName string
 
 const (
-	SetOption  = Process("SetOption")
-	CallMethod = Process("CallMethod")
-	DialOpen   = Process("DialOpen")
-	DialClose  = Process("DialClose")
+	SetOption  = ProcessName("SetOption")
+	CallMethod = ProcessName("CallMethod")
+	DialOpen   = ProcessName("DialOpen")
+	DialClose  = ProcessName("DialClose")
 )
 
-type ResponseState struct {
-	Wid      uint64
+type Worker struct {
+	WId      uint64
+	Jobs     []*Job
+	Duration time.Duration
+}
+
+type Process struct {
+	Name     ProcessName
 	Status   string
-	Process  Process
+	Duration time.Duration
+}
+
+type Job struct {
+	JId      uint64
+	States   *ConnectState
+	Errors   []*ErrorStatus
+	Process  []*Process
 	Duration time.Duration
 }
 
 type Report struct {
-	Wid           uint64
-	StartTime     time.Time
-	EndTime       time.Time
-	Total         time.Duration
-	States        []*ConnectState
-	ResponseState []*ResponseState
-	Errors        []*ErrorStatus
+	Wid       uint64
+	StartTime time.Time
+	EndTime   time.Time
+	Total     time.Duration
+	States    []*ConnectState
+	Workers   []*Worker
+	Errors    []*ErrorStatus
 }
 
 func PrintResult(report *Report, cmd Option) {
@@ -78,16 +91,21 @@ func PrintResult(report *Report, cmd Option) {
 	fmt.Printf("  Target: %v\n", cmd.Target)
 	fmt.Printf("  Total: %v\n", report.Total)
 	fmt.Println("  Options:")
-	fmt.Printf("     %v\n", cmd)
-
+	fmt.Printf("     rt: %v\n     w: %v\n     timeout: %v\n     load-max-duration: %v\n     isTls: %v\n     call: %v\n     target: %v\n     rps: %v\n   ",
+		cmd.RT, cmd.WorkerCnt, cmd.Timeout, cmd.LoadMaxDuration, cmd.IsTls, cmd.Call, cmd.Target, cmd.RPS)
 	fmt.Println()
 
-	if len(report.ResponseState) > 0 {
+	if len(report.Workers) > 0 {
 		fmt.Println("Process Tracking:")
-		fmt.Println("  Pid      State   Process            Duration")
-		for _, state := range report.ResponseState {
-			fmt.Printf("  [%-5v]  [%-5v] [%-15v]  %-5v\n", state.Wid, state.Status, state.Process, state.Duration)
+		fmt.Println("  Worker    Job    State   Process            Duration")
+		for _, worker := range report.Workers {
+			for _, job := range worker.Jobs {
+				for _, process := range job.Process {
+					fmt.Printf("  [%-5v] [%-5v] [%-5v] [%-15v]  %-5v\n", worker.WId, job.JId, process.Status, process.Name, process.Duration)
+				}
+			}
 		}
+
 	}
 	fmt.Println()
 
@@ -102,7 +120,7 @@ func PrintResult(report *Report, cmd Option) {
 
 	if len(report.Errors) > 0 {
 		fmt.Println("Error Description:")
-		fmt.Println("  Pid      code         message:")
+		fmt.Println("  Worker      code         message:")
 		for _, state := range report.Errors {
 			fmt.Printf("  %-5v   [%-5v]       %-5v\n", state.Wid, state.Code, state.Message)
 		}
