@@ -99,7 +99,7 @@ type Report struct {
 func PrintResult(report *Report, cmd Option) {
 
 	minMaxAverage(report)
-
+	CheckResultCnt(report)
 	fmt.Println()
 	fmt.Println("Summary:")
 	fmt.Printf("  Target: %v\n", cmd.Target)
@@ -121,7 +121,6 @@ func PrintResult(report *Report, cmd Option) {
 		for _, worker := range report.Workers {
 			fmt.Printf("  [%-5v] %-5v\n", worker.WId, worker.Duration)
 			for _, job := range worker.Jobs {
-				CheckResultCnt(report, worker, job)
 				fmt.Printf("  [%-5v] [%-5v]  %-5v\n", worker.WId, job.JId, job.Duration)
 				for _, process := range job.Process {
 					fmt.Printf("  [%-5v] [%-5v] [%-5v] [%-15v]  %-5v\n", worker.WId, job.JId, process.Status, process.Name, process.Duration)
@@ -132,17 +131,17 @@ func PrintResult(report *Report, cmd Option) {
 	}
 	fmt.Println()
 
-	// if len(report.States) > 0 {
-	// 	fmt.Println("Dial State Trace:")
-	// 	fmt.Println("  State       duration:")
-	// 	for _, state := range report.States {
-	// 		fmt.Printf("  [%v]       %v\n", state.ConnectState, state.Duration)
-	// 	}
-	// }
-	// fmt.Println()
+	if len(report.States) > 0 {
+		fmt.Println("Dial State Trace:")
+		fmt.Println("  State       duration:")
+		for _, state := range report.States {
+			fmt.Printf("  [%v]       %v\n", state.ConnectState, state.Duration)
+		}
+	}
+	fmt.Println()
 
 	if report.ErrorResult.Count > 0 {
-		fmt.Println("Error Description:")
+		fmt.Println("Errors:")
 		fmt.Println("  Code       message:")
 		for _, state := range report.ErrorResult.Errors {
 			fmt.Printf("  [%-5v]    %-5v\n", state.Code, state.Message)

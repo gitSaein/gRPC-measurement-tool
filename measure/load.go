@@ -41,11 +41,19 @@ func indexOf(code int32, data []*ErrorStatus) int {
 	return -1
 }
 
-func CheckResultCnt(report *Report, worker *Worker, job *Job) {
-	for _, err := range job.Errors {
-		report.ErrorResult.Count += 1
-		if indexOf(err.Code, report.ErrorResult.Errors) == -1 {
-			report.ErrorResult.Errors = append(report.ErrorResult.Errors, err)
+func CheckResultCnt(report *Report) {
+	if len(report.Workers) > 0 {
+		for _, worker := range report.Workers {
+			for _, job := range worker.Jobs {
+				for _, err := range job.Errors {
+					report.ErrorResult.Count += 1
+					if indexOf(err.Code, report.ErrorResult.Errors) == -1 {
+						report.ErrorResult.Errors = append(report.ErrorResult.Errors, err)
+					}
+				}
+
+			}
 		}
 	}
+
 }

@@ -41,6 +41,7 @@ func job(wait *sync.WaitGroup, cmd m.Option, worker *m.Worker) {
 		wait.Done()
 		setting.CancelFunc()
 		job.Duration = time.Since(startAt)
+		// log.Printf("wid: %v jid: %v \n", worker.WId, job.JId)
 	}()
 
 	// Set up a connection to the server.
@@ -57,48 +58,7 @@ func job(wait *sync.WaitGroup, cmd m.Option, worker *m.Worker) {
 	}
 
 }
-
-func TickWorkers(report *m.Report, cmd m.Option) {
-
-	tick := time.Tick(1 * time.Second)
-	boom := time.After(option.LoadMaxDuration)
-
-	requestCnt := option.RT
-	for requestCnt > 0 {
-		select {
-		case <-tick:
-			log.Println("tick")
-
-			wg := new(sync.WaitGroup)
-			wg.Add(option.WorkerCnt)
-
-			for i := 0; i < option.WorkerCnt; i++ {
-				go Worker(wg, report, option)
-			}
-
-			wg.Wait() //Go루틴 모두 끝날 때까지 대기
-
-		case <-boom:
-			log.Println("BOOM!")
-			return
-		}
-	}
-}
-
-func NormalWorkers(report *m.Report, cmd m.Option) {
-
-	wg := new(sync.WaitGroup)
-	wg.Add(option.WorkerCnt)
-
-	for i := 0; i < option.WorkerCnt; i++ {
-		go Worker(wg, report, option)
-	}
-
-	wg.Wait() //Go루틴 모두 끝날 때까지 대기
-
-}
-
-func Worker(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
+func NormalWorker(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
 	startAt := time.Now()
 
 	wg := new(sync.WaitGroup)
@@ -111,11 +71,47 @@ func Worker(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
 		report.Workers = append(report.Workers, worker)
 		wait.Done()
 	}()
+
 	for i := 0; i < option.RT; i++ {
 		go job(wg, option, worker)
 	}
 
 	wg.Wait() //Go루틴 모두 끝날 때까지 대기
+
+}
+
+func WorkerWithTickerJob(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
+	startAt := time.Now()
+
+	tick := time.Tick(1 * time.Second)
+	end := time.After(option.LoadMaxDuration * time.Second)
+
+	worker := &m.Worker{}
+	worker.WId = u.GetID()
+	defer func() {
+		worker.Duration = time.Since(startAt)
+		report.Workers = append(report.Workers, worker)
+		wait.Done()
+	}()
+	for {
+		select {
+		case <-tick:
+			log.Println("tick")
+
+			wg := new(sync.WaitGroup)
+			wg.Add(option.RPS)
+
+			for i := 0; i < option.RPS; i++ {
+				go job(wg, option, worker)
+			}
+
+			wg.Wait() //Go루틴 모두 끝날 때까지 대기
+
+		case <-end:
+			log.Println("END!")
+			return
+		}
+	}
 
 }
 
@@ -132,9 +128,19 @@ func main() {
 
 	}()
 
-	if option.LoadMaxDuration > 0 {
-		TickWorkers(report, option)
-	} else {
-		NormalWorkers(report, option)
+	wg := new(sync.WaitGroup)
+	wg.Add(option.WorkerCnt)
+
+	for i := 0; i < option.WorkerCnt; i++ {
+
+		if option.LoadMaxDuration > 0 {
+			go WorkerWithTickerJob(wg, report, option)
+		} else {
+			go NormalWorker(wg, report, option)
+
+		}
 	}
+
+	wg.Wait() //Go루틴 모두 끝날 때까지 대기
+
 }
