@@ -85,7 +85,7 @@ func WorkerWithTickerJob(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
 	startAt := time.Now()
 
 	tick := time.Tick(1 * time.Second)
-	end := time.After(option.LoadMaxDuration * time.Second)
+	end := time.After(time.Duration(cmd.LoadMaxDuration) * time.Second)
 
 	worker := &m.Worker{}
 	worker.WId = u.GetID()

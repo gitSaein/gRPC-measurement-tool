@@ -12,8 +12,8 @@ import (
 type Option struct {
 	RT              int
 	WorkerCnt       int
-	Timeout         time.Duration
-	LoadMaxDuration time.Duration
+	Timeout         int
+	LoadMaxDuration int
 	IsTls           bool
 	Call            string
 	Target          string
@@ -77,9 +77,11 @@ type Process struct {
 	Duration time.Duration
 }
 
-type ErrorResult struct {
-	Count  int
-	Errors []*ErrorStatus
+type JobResult struct {
+	ErrCnt   int
+	OkCnt    int
+	TotalCnt int
+	Errors   []*ErrorStatus
 }
 
 type HistogramData struct {
@@ -89,17 +91,17 @@ type HistogramData struct {
 }
 
 type Report struct {
-	StartTime   time.Time
-	EndTime     time.Time
-	Total       time.Duration
-	Min         time.Duration
-	Max         time.Duration
-	Avg         time.Duration
-	ErrorResult ErrorResult
-	SuccessCnt  int
-	Workers     []*Worker
-	States      []*ConnectState
-	Histogram   []*HistogramData
+	StartTime  time.Time
+	EndTime    time.Time
+	Total      time.Duration
+	Min        time.Duration
+	Max        time.Duration
+	Avg        time.Duration
+	JobResult  JobResult
+	SuccessCnt int
+	Workers    []*Worker
+	States     []*ConnectState
+	Histogram  []*HistogramData
 }
 
 func PrintResult(report *Report, cmd Option) {
@@ -107,19 +109,14 @@ func PrintResult(report *Report, cmd Option) {
 	minMaxAverage(report)
 	CheckResultCnt(report)
 	fmt.Println("Summary:")
-	fmt.Printf("  Target: %v\n", cmd.Target)
-	fmt.Printf("  RequestCount: %v\n", cmd.RT)
-	fmt.Printf("  Total: %v\n", report.Total)
+	fmt.Println(" Options:")
+	fmt.Printf("   Woker: %v\n   Rps: %v\n   Dial Connection timeout: %v\n   Load-max-duration: %v\n   Tls: %v\n   Target: %v\n",
+		cmd.WorkerCnt, cmd.RPS, time.Duration(cmd.Timeout)*time.Millisecond, time.Duration(cmd.LoadMaxDuration)*time.Second, cmd.IsTls, cmd.Target)
 	fmt.Println(" Request latency:")
+	fmt.Printf("   Total(s): %v\n", report.Total)
 	fmt.Printf("   Min: %v\n", report.Min)
 	fmt.Printf("   Max: %v\n", report.Max)
 	fmt.Printf("   Avg: %v\n", report.Avg)
-
-	// fmt.Println("  Options:")
-	// fmt.Printf("     rt: %v\n     w: %v\n     timeout: %v\n     load-max-duration: %v\n     isTls: %v\n     call: %v\n     target: %v\n     rps: %v\n   ",
-	// 	cmd.RT, cmd.WorkerCnt, cmd.Timeout, cmd.LoadMaxDuration, cmd.IsTls, cmd.Call, cmd.Target, cmd.RPS)
-	fmt.Println()
-
 	// if len(report.Workers) > 0 {
 	// 	fmt.Println("Process Tracking:")
 	// 	fmt.Println("  Worker    Job    State   Process            Duration")
@@ -145,20 +142,17 @@ func PrintResult(report *Report, cmd Option) {
 	// }
 	// fmt.Println()
 
-	if report.ErrorResult.Count > 0 {
-		fmt.Println("Errors:")
+	fmt.Println(" Response Result:")
+	fmt.Printf("  Total: [%-5v] OK:[%-5v] Failed:[%-5v]\n", report.JobResult.TotalCnt, report.JobResult.OkCnt, report.JobResult.ErrCnt)
+
+	if report.JobResult.ErrCnt > 0 {
+		fmt.Println(" Errors:")
 		fmt.Println("  Code       message:")
-		for _, state := range report.ErrorResult.Errors {
+		for _, state := range report.JobResult.Errors {
 			fmt.Printf("  [%-5v]    %-5v\n", state.Code, state.Message)
 		}
 	}
-	fmt.Println()
-
 	makeHistogramData(report)
-
-	// for _, h := range report.Histogram {
-
-	// }
 
 	okLats := make([]float64, 0)
 	for _, d := range report.Histogram {
@@ -166,6 +160,7 @@ func PrintResult(report *Report, cmd Option) {
 	}
 
 	sort.Float64s(okLats)
+	fmt.Println()
 
 	if len(okLats) > 0 {
 		var fastestNum, slowestNum float64
@@ -173,7 +168,7 @@ func PrintResult(report *Report, cmd Option) {
 		slowestNum = okLats[len(okLats)-1]
 
 		histogramRet := histogram(okLats, slowestNum, fastestNum)
-		fmt.Printf("Response time histogram:\n")
+		fmt.Printf(" Response time histogram(RPS):\n")
 		fmt.Printf("%s", histogramPrintString(histogramRet))
 	}
 

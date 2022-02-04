@@ -55,11 +55,16 @@ func indexOf(code int32, data []*ErrorStatus) int {
 func CheckResultCnt(report *Report) {
 	if len(report.Workers) > 0 {
 		for _, worker := range report.Workers {
+			report.JobResult.TotalCnt += len(worker.Jobs)
 			for _, job := range worker.Jobs {
-				for _, err := range job.Errors {
-					report.ErrorResult.Count += 1
-					if indexOf(err.Code, report.ErrorResult.Errors) == -1 {
-						report.ErrorResult.Errors = append(report.ErrorResult.Errors, err)
+				if len(job.Errors) == 0 {
+					report.JobResult.OkCnt += 1
+				} else {
+					for _, err := range job.Errors {
+						report.JobResult.ErrCnt += 1
+						if indexOf(err.Code, report.JobResult.Errors) == -1 {
+							report.JobResult.Errors = append(report.JobResult.Errors, err)
+						}
 					}
 				}
 
@@ -115,7 +120,7 @@ func histogram(latencies []float64, slowest, fastest float64) []Bucket {
 }
 
 const (
-	barChar = "#"
+	barChar = "■"
 )
 
 func histogramPrintString(buckets []Bucket) string {
