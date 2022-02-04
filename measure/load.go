@@ -12,7 +12,6 @@ func makeHistogramData(report *Report) {
 		for _, job := range worker.Jobs {
 			report.Histogram =
 				append(report.Histogram, &HistogramData{worker.WId, job.JId, job.TimeStamp})
-
 		}
 	}
 }
@@ -23,14 +22,22 @@ func minMaxAverage(report *Report) {
 	var max time.Duration
 	var avg time.Duration
 	var total time.Duration
-	for idx, worker := range report.Workers {
+	if len(report.Workers) > 0 {
+		if len(report.Workers[0].Jobs) > 0 {
+			min = report.Workers[0].Jobs[0].Duration
+			max = report.Workers[0].Jobs[0].Duration
+		}
+	}
+
+	for _, worker := range report.Workers {
+
 		for _, job := range worker.Jobs {
 
-			if min > job.Duration || idx == 0 {
+			if min > job.Duration {
 				min = job.Duration
 			}
 
-			if max < job.Duration || idx == 0 {
+			if max < job.Duration {
 				max = job.Duration
 			}
 			total += job.Duration
@@ -54,8 +61,9 @@ func indexOf(code int32, data []*ErrorStatus) int {
 
 func CheckResultCnt(report *Report) {
 	if len(report.Workers) > 0 {
-		for _, worker := range report.Workers {
+		for i, worker := range report.Workers {
 			report.JobResult.TotalCnt += len(worker.Jobs)
+			report.Workers[i].RPSSet = float64(len(worker.Jobs)) / worker.Duration.Seconds()
 			for _, job := range worker.Jobs {
 				if len(job.Errors) == 0 {
 					report.JobResult.OkCnt += 1

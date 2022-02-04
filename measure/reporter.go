@@ -61,6 +61,7 @@ type Worker struct {
 	WId      uint64
 	Jobs     []*Job
 	RPS      int
+	RPSSet   float64
 	Duration time.Duration
 }
 type Job struct {
@@ -143,8 +144,18 @@ func PrintResult(report *Report, cmd Option) {
 	// }
 	// fmt.Println()
 
-	fmt.Println(" Response Result:")
-	fmt.Printf("  Total: [%-5v] OK:[%-5v] Failed:[%-5v]\n", report.JobResult.TotalCnt, report.JobResult.OkCnt, report.JobResult.ErrCnt)
+	fmt.Println(" RPS Result:")
+	var totalRps float64
+	if len(report.Workers) > 0 {
+		for _, w := range report.Workers {
+			fmt.Printf("   Worker: [%-5v] [%-5v]\n", w.WId, w.RPSSet)
+			totalRps += w.RPSSet
+		}
+		fmt.Printf("                   [%-5v]\n", totalRps)
+
+	}
+
+	fmt.Printf(" Total: [%-5v] OK:[%-5v] Failed:[%-5v]\n", report.JobResult.TotalCnt, report.JobResult.OkCnt, report.JobResult.ErrCnt)
 
 	if report.JobResult.ErrCnt > 0 {
 		fmt.Println(" Errors:")
