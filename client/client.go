@@ -7,7 +7,7 @@ import (
 
 	c "gRPC_measurement_tool/cmd"
 	u "gRPC_measurement_tool/config"
-	errorModel "gRPC_measurement_tool/handler"
+	h "gRPC_measurement_tool/handler"
 	m "gRPC_measurement_tool/measure"
 
 	"google.golang.org/grpc"
@@ -34,7 +34,7 @@ func job(wait *sync.WaitGroup, cmd m.Option, worker *m.Worker) {
 	startAt := time.Now()
 	job := &m.Job{JId: u.GetID()}
 	setting := u.SettingOptions(cmd)
-	errorModel.HandleReponse(setting.Error, worker, job, cmd, m.SetOption, startAt)
+	h.HandleReponse(setting.Error, worker, job, cmd, m.SetOption, startAt)
 
 	defer func() {
 		worker.Jobs = append(worker.Jobs, job)
@@ -48,13 +48,13 @@ func job(wait *sync.WaitGroup, cmd m.Option, worker *m.Worker) {
 	// Set up a connection to the server.
 	startAt1 := time.Now()
 	conn, err := grpc.DialContext(setting.Context, cmd.Target, setting.Options...)
-	errorModel.HandleReponse(err, worker, job, cmd, m.DialOpen, startAt1)
+	h.HandleReponse(err, worker, job, cmd, m.DialOpen, startAt1)
 
 	if conn != nil {
 		defer func() {
 			startAt2 := time.Now()
 			err = conn.Close()
-			errorModel.HandleReponse(err, worker, job, cmd, m.DialClose, startAt2)
+			h.HandleReponse(err, worker, job, cmd, m.DialClose, startAt2)
 		}()
 	}
 
@@ -81,13 +81,14 @@ func NormalWorker(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
 
 }
 
-func WorkerWithTickerJob(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
+func WorkerWithTickerJob(wait *sync.WaitGroup, report *m.Report, cmd m.Option, wno int) {
 	startAt := time.Now()
 
 	tick := time.Tick(1 * time.Second)
 	end := time.After(time.Duration(cmd.LoadMaxDuration) * time.Second)
 
 	worker := &m.Worker{}
+	h.ShareRpsPerWorer(cmd, wno, worker, report)
 	worker.WId = u.GetID()
 	defer func() {
 		worker.Duration = time.Since(startAt)
@@ -98,9 +99,9 @@ func WorkerWithTickerJob(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
 		select {
 		case <-tick:
 			wg := new(sync.WaitGroup)
-			wg.Add(option.RPS)
+			wg.Add(worker.RPS)
 
-			for i := 0; i < option.RPS; i++ {
+			for i := 0; i < worker.RPS; i++ {
 				go job(wg, option, worker)
 			}
 
@@ -132,7 +133,7 @@ func main() {
 	for i := 0; i < option.WorkerCnt; i++ {
 
 		if option.LoadMaxDuration > 0 {
-			go WorkerWithTickerJob(wg, report, option)
+			go WorkerWithTickerJob(wg, report, option, i)
 		} else {
 			go NormalWorker(wg, report, option)
 

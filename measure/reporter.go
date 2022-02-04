@@ -60,6 +60,7 @@ const (
 type Worker struct {
 	WId      uint64
 	Jobs     []*Job
+	RPS      int
 	Duration time.Duration
 }
 type Job struct {
