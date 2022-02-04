@@ -10,10 +10,11 @@
 
 
 ## 측정 데이터
-- total request   -rc
 - timeout         -timeout
 - tls 인증여부    -isTls
-- call method     -call
+- worker 수       -w
+- rps             -rps
+- 측정 기간       -lmd
 
 > go build ./client.go
 > ./client  -tr 10 -timeout 1000 -call helloworld.Greeter.SayHello
