@@ -11,7 +11,7 @@ func makeHistogramData(report *Report) {
 	for _, worker := range report.Workers {
 		for _, job := range worker.Jobs {
 			report.Histogram =
-				append(report.Histogram, &HistogramData{worker.WId, job.JId, job.TimeStamp})
+				append(report.Histogram, &HistogramData{worker.WId, job.JId, job.Duration})
 		}
 	}
 }

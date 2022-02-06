@@ -2,9 +2,11 @@ package measure
 
 import (
 	"fmt"
+	"os"
 	"sort"
 	"time"
 
+	h "github.com/aybabtme/uniplot/histogram"
 	"github.com/golang/protobuf/ptypes/any"
 	"google.golang.org/grpc/connectivity"
 )
@@ -87,9 +89,9 @@ type JobResult struct {
 }
 
 type HistogramData struct {
-	WId       uint64
-	JId       uint64
-	Timestamp time.Time
+	WId      uint64
+	JId      uint64
+	Duration time.Duration
 }
 
 type Report struct {
@@ -168,20 +170,23 @@ func PrintResult(report *Report, cmd Option) {
 
 	okLats := make([]float64, 0)
 	for _, d := range report.Histogram {
-		okLats = append(okLats, float64(d.Timestamp.Second()))
+		okLats = append(okLats, float64(d.Duration))
 	}
 
 	sort.Float64s(okLats)
 	fmt.Println()
 
 	if len(okLats) > 0 {
-		var fastestNum, slowestNum float64
-		fastestNum = okLats[0]
-		slowestNum = okLats[len(okLats)-1]
 
-		histogramRet := histogram(okLats, slowestNum, fastestNum)
-		fmt.Printf(" Response time histogram(RPS):\n")
-		fmt.Printf("%s", histogramPrintString(histogramRet))
+		hist := h.Hist(10, okLats)
+		fmt.Printf(" Response time histogram:\n")
+
+		if err := h.Fprintf(os.Stdout, hist, h.Linear(5), func(v float64) string {
+			return time.Duration(v).String()
+		}); err != nil {
+			panic(err)
+		}
+
 	}
 
 }
