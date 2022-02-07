@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -116,7 +117,6 @@ func main() {
 	log.Println("Measure start...")
 
 	report := &m.Report{}
-	var mutex = &sync.Mutex{}
 	defer func() {
 
 		report.Total = time.Since(startInitAt)
@@ -126,32 +126,51 @@ func main() {
 
 	}()
 
-	totalR := option.RT
+	ch := make(chan bool)
+	quit := make(chan bool)
 
+	totalR := 30
+
+	go func() {
+		for totalR <= 0 {
+			totalR -= 10
+			time.Sleep(20 * time.Second)
+		}
+		log.Println(totalR)
+
+		quit <- true
+		// log.Printf("left RT: %d", totalR)
+
+		// wg := new(sync.WaitGroup)
+		// wg.Add(option.WorkerCnt)
+		// for i := 0; i < option.WorkerCnt; i++ {
+		// 	worker := &m.Worker{}
+		// 	worker.WId = uint64(i)
+		// 	h.ShareRpsPerWorer(option, i, worker, report)
+
+		// 	report.Workers = append(report.Workers, worker)
+
+		// 	go WorkerWithTickerJob(report, option, worker)
+		// 	wg.Done()
+
+		// }
+		// wg.Wait() //Go루틴 모두 끝날 때까지 대기
+
+	}()
+
+	work(ch, quit)
+}
+
+func work(ch, quit chan bool) {
 	for {
-		time.Sleep(time.Duration(1) * time.Second)
-		log.Println("tick")
-		wg := new(sync.WaitGroup)
-		wg.Add(option.WorkerCnt)
-
-		go func() {
-			log.Printf("left RT: %d", totalR)
-
-			for i := 0; i < option.WorkerCnt; i++ {
-				worker := &m.Worker{}
-				worker.WId = uint64(i)
-				h.ShareRpsPerWorer(option, i, worker, report)
-				defer func() {
-					report.Workers = append(report.Workers, worker)
-					mutex.Lock()
-					totalR -= len(worker.Jobs)
-					mutex.Unlock()
-					wg.Done()
-				}()
-				go WorkerWithTickerJob(report, option, worker)
-			}
-		}()
-		wg.Wait() //Go루틴 모두 끝날 때까지 대기
+		select {
+		default:
+			time.Sleep(time.Duration(1) * time.Second)
+			log.Println("tick")
+		case <-quit:
+			fmt.Println("quit")
+			return
+		}
 	}
 
 }
