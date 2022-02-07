@@ -8,7 +8,7 @@ import (
 	m "gRPC_measurement_tool/measure"
 )
 
-func HandleReponse(err error, worker *m.Worker, job *m.Job, option m.Option, p m.ProcessName, startAt time.Time) {
+func HandleReponse(err error, worker m.Worker, job *m.Job, option m.Option, p m.ProcessName, startAt time.Time) {
 	if err != nil {
 		st, _ := status.FromError(err)
 		job.Errors = append(job.Errors, &m.ErrorStatus{

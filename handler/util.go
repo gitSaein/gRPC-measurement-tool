@@ -14,7 +14,7 @@ func toFixed(num float64, precision int) float64 {
 	return float64(round(num*output)) / output
 }
 
-func ShareRpsPerWorer(option m.Option, wno int, w *m.Worker, report *m.Report) {
+func ShareRpsPerWorer(option m.Option, wno int, w m.Worker) m.Worker {
 
 	perRps := int(toFixed(float64(option.RPS/option.WorkerCnt), 0))
 	alreadyGet := wno * perRps
@@ -26,5 +26,6 @@ func ShareRpsPerWorer(option m.Option, wno int, w *m.Worker, report *m.Report) {
 	} else {
 		w.RPS = perRps
 	}
+	return w
 
 }

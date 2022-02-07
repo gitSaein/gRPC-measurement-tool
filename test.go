@@ -1,20 +1,21 @@
 package main
 
 import (
-	"log"
+	"fmt"
 	"time"
 )
+
+func say(s string) {
+	for i := 0; i < 5; i++ {
+		time.Sleep(100 * time.Millisecond)
+		fmt.Println(s)
+	}
+}
 
 // Main function
 func main() {
 
-	delay := time.NewTimer(time.Second * 3)
-	log.Println("start")
-
-	select {
-	case <-delay.C:
-		log.Println("end")
-
-	}
+	go say("hello")
+	say("world")
 
 }

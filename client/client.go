@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"sync"
 	"time"
 
 	c "gRPC_measurement_tool/cmd"
@@ -33,82 +32,36 @@ func init() {
 
 var kkk = 0
 
-func job(wait *sync.WaitGroup, cmd m.Option, worker *m.Worker, job *m.Job) {
+func job(cmd m.Option, worker m.Worker) m.Worker {
 	startAt := time.Now()
+	job := &m.Job{JId: u.GetID()}
 	setting := u.SettingOptions(cmd)
 	h.HandleReponse(setting.Error, worker, job, cmd, m.SetOption, startAt)
-
-	defer func() {
-		kkk += 1
-		worker.Jobs = append(worker.Jobs, job)
-		wait.Done()
-		setting.CancelFunc()
-		job.Duration = time.Since(startAt)
-		job.TimeStamp = time.Now()
-
-		// log.Printf("wid: %v jid: %v  %s\n", worker.WId, job.JId, job.TimeStamp)
-	}()
-
 	// Set up a connection to the server.
 	startAt1 := time.Now()
 	conn, err := grpc.DialContext(setting.Context, cmd.Target, setting.Options...)
 	h.HandleReponse(err, worker, job, cmd, m.DialOpen, startAt1)
 
+	kkk += 1
 	if conn != nil {
-		defer func() {
-			startAt2 := time.Now()
-			err = conn.Close()
-			h.HandleReponse(err, worker, job, cmd, m.DialClose, startAt2)
-		}()
+		startAt2 := time.Now()
+		err = conn.Close()
+		h.HandleReponse(err, worker, job, cmd, m.DialClose, startAt2)
 	}
-
-}
-func NormalWorker(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
-	startAt := time.Now()
-
-	wg := new(sync.WaitGroup)
-	wg.Add(option.RT)
-
-	worker := &m.Worker{}
-	worker.WId = u.GetID()
-	defer func() {
-		worker.Duration = time.Since(startAt)
-		report.Workers = append(report.Workers, worker)
-		wait.Done()
-	}()
-
-	for i := 0; i < option.RT; i++ {
-		// go job(wg, option, worker)
-	}
-
-	wg.Wait() //Go루틴 모두 끝날 때까지 대기
+	setting.CancelFunc()
+	job.Duration = time.Since(startAt)
+	job.TimeStamp = time.Now()
+	worker.Jobs = append(worker.Jobs, job)
+	// log.Printf("wid: %v jid: %v  %s\n", worker.WId, job.JId, job.TimeStamp)
+	return worker
 
 }
 
-func WorkerWithTickerJob(report *m.Report, cmd m.Option, worker *m.Worker) {
+func WorkerWithTickerJob(cmd m.Option, worker m.Worker) m.Worker {
 	startAt := time.Now()
-
-	// tick := time.Tick(1 * time.Second)
-	// end := time.NewTimer(time.Duration(cmd.LoadMaxDuration) * time.Second)
-
-	wg := new(sync.WaitGroup)
-	j := &m.Job{JId: u.GetID()}
-	wg.Add(worker.RPS)
-	ccc := 0
-	go func() {
-		for i := 0; i < worker.RPS; i++ {
-			job(wg, option, worker, j)
-			ccc += 1
-		}
-	}()
-
-	wg.Wait() //Go루틴 모두 끝날 때까지 대기
-
-	defer func() {
-		worker.Duration = time.Since(startAt)
-		log.Printf("[%d] - [%d] : %d", worker.WId, worker.RPS, ccc)
-	}()
-
+	worker = job(option, worker)
+	worker.Duration = time.Since(startAt)
+	return worker
 }
 
 func main() {
@@ -126,51 +79,59 @@ func main() {
 
 	}()
 
-	ch := make(chan bool)
-	quit := make(chan bool)
+	ch := make(chan m.Worker)
+	ch_result := make(chan m.Worker)
+	req_cnt := make(chan int)
+	ch_done := make(chan bool)
 
-	totalR := 30
+	// 1. total 값 + rps 로 주고,
+	// 2. 1초마다 호출 rps 만큼 호출 하고, total에서 실제 실행된 수 만큼 뺴준다.
+	// 3. total값 만큼 다 호출하면 끝낸다.
+	// totalR := option.RT
 
-	go func() {
-		for totalR <= 0 {
-			totalR -= 10
-			time.Sleep(20 * time.Second)
-		}
-		log.Println(totalR)
+	for i := 0; i < option.WorkerCnt; i++ {
+		go func(j int) {
+			work(ch, j)
+		}(i)
+	}
 
-		quit <- true
-		// log.Printf("left RT: %d", totalR)
+	report = jobz(ch, ch_result, req_cnt, option.RT, ch_done)
 
-		// wg := new(sync.WaitGroup)
-		// wg.Add(option.WorkerCnt)
-		// for i := 0; i < option.WorkerCnt; i++ {
-		// 	worker := &m.Worker{}
-		// 	worker.WId = uint64(i)
-		// 	h.ShareRpsPerWorer(option, i, worker, report)
+	a := <-req_cnt
+	fmt.Println(a)
 
-		// 	report.Workers = append(report.Workers, worker)
-
-		// 	go WorkerWithTickerJob(report, option, worker)
-		// 	wg.Done()
-
-		// }
-		// wg.Wait() //Go루틴 모두 끝날 때까지 대기
-
-	}()
-
-	work(ch, quit)
 }
 
-func work(ch, quit chan bool) {
+func jobz(ch chan m.Worker, ch_result chan m.Worker, req_cnt chan int, totalCnt int, ch_done chan bool) *m.Report {
+	report := &m.Report{}
+	cnt := 0
 	for {
 		select {
-		default:
+		case worker := <-ch:
+			fmt.Println(worker)
 			time.Sleep(time.Duration(1) * time.Second)
 			log.Println("tick")
-		case <-quit:
-			fmt.Println("quit")
-			return
+			for i := 0; i < worker.RPS; i++ {
+				go func() {
+					ch_result <- WorkerWithTickerJob(option, worker)
+				}()
+				work_result := <-ch_result
+				report.Workers = append(report.Workers, work_result)
+				cnt += 1
+				req_cnt <- cnt
+			}
+		case <-ch_done:
+			return report
 		}
 	}
+
+}
+
+func work(ch chan m.Worker, wno int) {
+
+	worker := m.Worker{}
+	worker.WId = u.GetID()
+	worker = h.ShareRpsPerWorer(option, wno, worker)
+	ch <- worker
 
 }

@@ -113,7 +113,7 @@ type Report struct {
 	Avg        time.Duration
 	JobResult  JobResult
 	SuccessCnt int
-	Workers    []*Worker
+	Workers    []Worker
 	States     []*ConnectState
 	Histogram  []*HistogramData
 }
