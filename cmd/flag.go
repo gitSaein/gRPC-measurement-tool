@@ -14,7 +14,7 @@ func Basic() m.Option {
 	isTls := flag.Bool("isTls", false, "tls 인증여부")
 	call := flag.String("call", "", "call method")
 	target := flag.String("target", "localhost:50051", "target")
-	w := flag.Int("w", 2, "total worker")
+	w := flag.Int("w", 1, "total worker")
 
 	flag.Parse() // 명령줄 옵션의 내용을 각 자료형별로 분석
 
