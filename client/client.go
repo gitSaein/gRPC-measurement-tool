@@ -89,7 +89,13 @@ func main() {
 	// 3. total값 만큼 다 호출하면 끝낸다.
 	// totalR := option.RT
 
-	for i := 0; i < option.WorkerCnt; i++ {
+	left := option.RT % option.RPS
+	loopCnt := int(h.ToFixed(float64(option.RT/option.RPS), 0))
+	if left > 0 && left < option.RPS {
+		loopCnt = loopCnt + 1
+	}
+
+	for i := 0; i < loopCnt; i++ {
 		go func(j int) {
 			work(ch, j)
 		}(i)
@@ -103,22 +109,22 @@ func main() {
 }
 
 func jobz(ch chan m.Worker, ch_result chan m.Worker, req_cnt chan int, totalCnt int, ch_done chan bool) *m.Report {
-	report := &m.Report{}
-	cnt := 0
+
 	for {
 		select {
 		case worker := <-ch:
 			fmt.Println(worker)
 			time.Sleep(time.Duration(1) * time.Second)
 			log.Println("tick")
+			jobs := []m.Job{}
 			for i := 0; i < worker.RPS; i++ {
 				go func() {
 					ch_result <- WorkerWithTickerJob(option, worker)
 				}()
 				work_result := <-ch_result
-				report.Workers = append(report.Workers, work_result)
-				cnt += 1
-				req_cnt <- cnt
+				jobs = append(jobs, work_result)
+				log.Print(work_result)
+				log.Printf("%v - %v", len(report.Workers), len(work_result.Jobs))
 			}
 		case <-ch_done:
 			return report
