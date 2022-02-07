@@ -3,6 +3,7 @@ package measure
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -62,6 +63,7 @@ func indexOf(code int32, data []*ErrorStatus) int {
 func CheckResultCnt(report *Report) {
 	if len(report.Workers) > 0 {
 		for i, worker := range report.Workers {
+			log.Printf("j_len: %d", len(worker.Jobs))
 			report.JobResult.TotalCnt += len(worker.Jobs)
 			report.Workers[i].RPSSet = float64(len(worker.Jobs)) / worker.Duration.Seconds()
 			for _, job := range worker.Jobs {

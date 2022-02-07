@@ -30,18 +30,21 @@ func init() {
 	option = c.Basic()
 }
 
-func job(wait *sync.WaitGroup, cmd m.Option, worker *m.Worker) {
+var kkk = 0
+
+func job(wait *sync.WaitGroup, cmd m.Option, worker *m.Worker, job *m.Job) {
 	startAt := time.Now()
-	job := &m.Job{JId: u.GetID()}
 	setting := u.SettingOptions(cmd)
 	h.HandleReponse(setting.Error, worker, job, cmd, m.SetOption, startAt)
 
 	defer func() {
+		kkk += 1
 		worker.Jobs = append(worker.Jobs, job)
 		wait.Done()
 		setting.CancelFunc()
 		job.Duration = time.Since(startAt)
 		job.TimeStamp = time.Now()
+
 		// log.Printf("wid: %v jid: %v  %s\n", worker.WId, job.JId, job.TimeStamp)
 	}()
 
@@ -74,43 +77,36 @@ func NormalWorker(wait *sync.WaitGroup, report *m.Report, cmd m.Option) {
 	}()
 
 	for i := 0; i < option.RT; i++ {
-		go job(wg, option, worker)
+		// go job(wg, option, worker)
 	}
 
 	wg.Wait() //Go루틴 모두 끝날 때까지 대기
 
 }
 
-func WorkerWithTickerJob(wait *sync.WaitGroup, report *m.Report, cmd m.Option, wno int) {
+func WorkerWithTickerJob(report *m.Report, cmd m.Option, worker *m.Worker) {
 	startAt := time.Now()
 
-	tick := time.Tick(1 * time.Second)
-	end := time.After(time.Duration(cmd.LoadMaxDuration) * time.Second)
+	// tick := time.Tick(1 * time.Second)
+	// end := time.NewTimer(time.Duration(cmd.LoadMaxDuration) * time.Second)
 
-	worker := &m.Worker{}
-	h.ShareRpsPerWorer(cmd, wno, worker, report)
-	worker.WId = u.GetID()
+	wg := new(sync.WaitGroup)
+	j := &m.Job{JId: u.GetID()}
+	wg.Add(worker.RPS)
+	ccc := 0
+	go func() {
+		for i := 0; i < worker.RPS; i++ {
+			job(wg, option, worker, j)
+			ccc += 1
+		}
+	}()
+
+	wg.Wait() //Go루틴 모두 끝날 때까지 대기
+
 	defer func() {
 		worker.Duration = time.Since(startAt)
-		report.Workers = append(report.Workers, worker)
-		wait.Done()
+		log.Printf("[%d] - [%d] : %d", worker.WId, worker.RPS, ccc)
 	}()
-	for {
-		select {
-		case <-tick:
-			wg := new(sync.WaitGroup)
-			wg.Add(worker.RPS)
-
-			for i := 0; i < worker.RPS; i++ {
-				go job(wg, option, worker)
-			}
-
-			wg.Wait() //Go루틴 모두 끝날 때까지 대기
-
-		case <-end:
-			return
-		}
-	}
 
 }
 
@@ -120,26 +116,42 @@ func main() {
 	log.Println("Measure start...")
 
 	report := &m.Report{}
+	var mutex = &sync.Mutex{}
 	defer func() {
+
 		report.Total = time.Since(startInitAt)
-		log.Println("Measure end...")
+		log.Printf("Measure end... %d", kkk)
+		kkk = 0
 		m.PrintResult(report, option)
 
 	}()
 
-	wg := new(sync.WaitGroup)
-	wg.Add(option.WorkerCnt)
+	totalR := option.RT
 
-	for i := 0; i < option.WorkerCnt; i++ {
+	for {
+		time.Sleep(time.Duration(1) * time.Second)
+		log.Println("tick")
+		wg := new(sync.WaitGroup)
+		wg.Add(option.WorkerCnt)
 
-		if option.LoadMaxDuration > 0 {
-			go WorkerWithTickerJob(wg, report, option, i)
-		} else {
-			go NormalWorker(wg, report, option)
+		go func() {
+			log.Printf("left RT: %d", totalR)
 
-		}
+			for i := 0; i < option.WorkerCnt; i++ {
+				worker := &m.Worker{}
+				worker.WId = uint64(i)
+				h.ShareRpsPerWorer(option, i, worker, report)
+				defer func() {
+					report.Workers = append(report.Workers, worker)
+					mutex.Lock()
+					totalR -= len(worker.Jobs)
+					mutex.Unlock()
+					wg.Done()
+				}()
+				go WorkerWithTickerJob(report, option, worker)
+			}
+		}()
+		wg.Wait() //Go루틴 모두 끝날 때까지 대기
 	}
-
-	wg.Wait() //Go루틴 모두 끝날 때까지 대기
 
 }

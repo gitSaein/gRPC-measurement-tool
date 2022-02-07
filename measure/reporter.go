@@ -1,6 +1,7 @@
 package measure
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"sort"
@@ -8,6 +9,7 @@ import (
 
 	h "github.com/aybabtme/uniplot/histogram"
 	"github.com/golang/protobuf/ptypes/any"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/connectivity"
 )
 
@@ -20,6 +22,13 @@ type Option struct {
 	Call            string
 	Target          string
 	RPS             int
+}
+
+type Setting struct {
+	Options    []grpc.DialOption
+	Error      error
+	Context    context.Context
+	CancelFunc context.CancelFunc
 }
 
 type ErrorStatus struct {
@@ -65,6 +74,7 @@ type Worker struct {
 	RPS      int
 	RPSSet   float64
 	Duration time.Duration
+	Setting  *Setting
 }
 type Job struct {
 	JId       uint64
@@ -146,16 +156,15 @@ func PrintResult(report *Report, cmd Option) {
 	// }
 	// fmt.Println()
 
-	fmt.Println(" RPS Result:")
-	var totalRps float64
-	if len(report.Workers) > 0 {
-		for _, w := range report.Workers {
-			fmt.Printf("   Worker: [%-5v] [%-5v]\n", w.WId, w.RPSSet)
-			totalRps += w.RPSSet
-		}
-		fmt.Printf("                   [%-5v]\n", totalRps)
+	// if len(report.Workers) > 0 {
+	// 	var totalRps float64
 
-	}
+	// 	for _, w := range report.Workers {
+	// 		totalRps += w.RPSSet
+	// 	}
+	// 	fmt.Printf("   Requests/sec: %v\n", totalRps/float64(len(report.Workers)))
+
+	// }
 
 	fmt.Printf(" Total: [%-5v] OK:[%-5v] Failed:[%-5v]\n", report.JobResult.TotalCnt, report.JobResult.OkCnt, report.JobResult.ErrCnt)
 

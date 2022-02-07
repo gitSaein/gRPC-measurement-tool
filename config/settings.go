@@ -4,9 +4,6 @@ import (
 	"bytes"
 	"context"
 	"errors"
-
-	m "gRPC_measurement_tool/measure"
-
 	"runtime"
 	"strconv"
 	"strings"
@@ -16,15 +13,9 @@ import (
 	"google.golang.org/grpc/connectivity"
 	"google.golang.org/grpc/credentials"
 
+	m "gRPC_measurement_tool/measure"
 	hellowold "gRPC_measurement_tool/protos"
 )
-
-type Setting struct {
-	Options    []grpc.DialOption
-	Error      error
-	Context    context.Context
-	CancelFunc context.CancelFunc
-}
 
 func CheckDialConnection(conn *grpc.ClientConn, ctx context.Context, wid uint64, startAt time.Time, report *m.Report) {
 	for {
@@ -54,15 +45,15 @@ func GetID() uint64 {
 	return n
 }
 
-func SettingOptions(option m.Option) *Setting {
-	setting := &Setting{}
+func SettingOptions(option m.Option) *m.Setting {
+	setting := &m.Setting{}
 
 	if option.IsTls {
 
 		rootCACert := "../cert/server.crt"
 		creds, err := credentials.NewClientTLSFromFile(rootCACert, "")
 		if err != nil {
-			return &Setting{Error: err}
+			return &m.Setting{Error: err}
 		}
 		setting.Options = append(setting.Options, grpc.WithTransportCredentials(creds))
 		setting.Options = append(setting.Options, grpc.FailOnNonTempDialError(true))
