@@ -14,14 +14,14 @@ import (
 )
 
 type Option struct {
-	RT              int
-	WorkerCnt       int
-	Timeout         int
-	LoadMaxDuration int
-	IsTls           bool
-	Call            string
-	Target          string
-	RPS             int
+	RT int
+	// WorkerCnt       int
+	Timeout int
+	// LoadMaxDuration int
+	IsTls  bool
+	Call   string
+	Target string
+	RPS    int
 }
 
 type Setting struct {
@@ -113,59 +113,23 @@ type Report struct {
 	Avg        time.Duration
 	JobResult  JobResult
 	SuccessCnt int
-	Workers    []Worker
+	Workers    []*Worker
 	States     []*ConnectState
 	Histogram  []*HistogramData
 }
 
 func PrintResult(report *Report, cmd Option) {
 
-	minMaxAverage(report)
+	minMax(report)
 	CheckResultCnt(report)
 	fmt.Println("Summary:")
 	fmt.Println(" Options:")
-	fmt.Printf("   Woker: %v\n   Rps: %v\n   Dial Connection timeout: %v\n   Load-max-duration: %v\n   Tls: %v\n   Target: %v\n",
-		cmd.WorkerCnt, cmd.RPS, time.Duration(cmd.Timeout)*time.Millisecond, time.Duration(cmd.LoadMaxDuration)*time.Second, cmd.IsTls, cmd.Target)
+	fmt.Printf("   Request Total: %v\n   Rps: %v\n   Dial Connection timeout: %v\n   Tls: %v\n   Target: %v\n",
+		cmd.RT, cmd.RPS, time.Duration(cmd.Timeout)*time.Millisecond, cmd.IsTls, cmd.Target)
 	fmt.Println(" Request latency:")
 	fmt.Printf("   Total(s): %v\n", report.Total)
 	fmt.Printf("   Min: %v\n", report.Min)
 	fmt.Printf("   Max: %v\n", report.Max)
-	fmt.Printf("   Avg: %v\n", report.Avg)
-	// if len(report.Workers) > 0 {
-	// 	fmt.Println("Process Tracking:")
-	// 	fmt.Println("  Worker    Job    State   Process            Duration")
-	// 	for _, worker := range report.Workers {
-	// 		fmt.Printf("  [%-5v] %-5v\n", worker.WId, worker.Duration)
-	// 		for _, job := range worker.Jobs {
-	// 			fmt.Printf("  [%-5v] [%-5v]  %-5v\n", worker.WId, job.JId, job.Duration)
-	// 			for _, process := range job.Process {
-	// 				fmt.Printf("  [%-5v] [%-5v] [%-5v] [%-15v]  %-5v\n", worker.WId, job.JId, process.Status, process.Name, process.Duration)
-	// 			}
-	// 		}
-	// 	}
-
-	// }
-	// fmt.Println()
-
-	// if len(report.States) > 0 {
-	// 	fmt.Println("Dial State Trace:")
-	// 	fmt.Println("  State       duration:")
-	// 	for _, state := range report.States {
-	// 		fmt.Printf("  [%v]       %v\n", state.ConnectState, state.Duration)
-	// 	}
-	// }
-	// fmt.Println()
-
-	// if len(report.Workers) > 0 {
-	// 	var totalRps float64
-
-	// 	for _, w := range report.Workers {
-	// 		totalRps += w.RPSSet
-	// 	}
-	// 	fmt.Printf("   Requests/sec: %v\n", totalRps/float64(len(report.Workers)))
-
-	// }
-
 	fmt.Printf(" Total: [%-5v] OK:[%-5v] Failed:[%-5v]\n", report.JobResult.TotalCnt, report.JobResult.OkCnt, report.JobResult.ErrCnt)
 
 	if report.JobResult.ErrCnt > 0 {
