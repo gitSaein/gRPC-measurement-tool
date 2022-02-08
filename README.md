@@ -10,17 +10,19 @@
 
 
 ## 측정 데이터
-- total request   -rc
-- timeout         -timeout
-- tls 인증여부    -isTls
-- call method     -call
+- total request count   -rt
+- timeout               -timeout
+- tls 인증여부           -isTls
+- call method           -call
+- rps              
 
 > go build ./client.go
 > ./client  -tr 10 -timeout 1000 -call helloworld.Greeter.SayHello
 
 
-## Exception 측정
-- 
+## 결과
+>> go run .\client.go -rps 99 -rt 1000
+![image](https://user-images.githubusercontent.com/46148739/152948767-5377a401-b4ab-411e-a09a-3cc6c75e5315.png)
 
 
 ## Reference
