@@ -22,7 +22,7 @@
 
 ## 결과
 >> go run .\client.go -rps 99 -rt 1000
-![image](https://user-images.githubusercontent.com/46148739/152948767-5377a401-b4ab-411e-a09a-3cc6c75e5315.png)
+![image](https://user-images.githubusercontent.com/46148739/152949137-34b125dc-858a-46cf-b273-cf23dbd36625.png)
 
 
 ## Reference
