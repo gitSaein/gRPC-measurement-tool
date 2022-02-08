@@ -3,7 +3,6 @@ package measure
 import (
 	"bytes"
 	"fmt"
-	"log"
 	"strings"
 	"time"
 )
@@ -50,13 +49,6 @@ func finalCalc(report *Report) {
 	average := totalDuration.Seconds() / float64(report.JobResult.TotalCnt)
 	report.Avg = time.Duration(average * float64(time.Second))
 	report.RPS = float64(report.JobResult.TotalCnt) / totalDuration.Seconds()
-
-	log.Printf("total duration: %v", float64(report.JobResult.TotalCnt))
-	log.Printf("total duration: %v", totalDuration)
-	log.Printf("total duration: %v", totalDuration.Seconds())
-
-	dd := 4 / time.Duration(10).Milliseconds()
-	log.Printf("total sdfsdf: %v", dd)
 
 }
 
