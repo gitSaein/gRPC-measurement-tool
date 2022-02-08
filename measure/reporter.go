@@ -110,6 +110,7 @@ type Report struct {
 	Total      time.Duration
 	Min        time.Duration
 	Max        time.Duration
+	RPS        float64
 	Avg        time.Duration
 	JobResult  JobResult
 	SuccessCnt int
@@ -118,18 +119,21 @@ type Report struct {
 	Histogram  []*HistogramData
 }
 
-func PrintResult(report *Report, cmd Option) {
-
-	minMax(report)
+func PrintResult(report *Report, option Option) {
+	fmt.Println()
 	CheckResultCnt(report)
+	finalCalc(report)
 	fmt.Println("Summary:")
 	fmt.Println(" Options:")
 	fmt.Printf("   Request Total: %v\n   Rps: %v\n   Dial Connection timeout: %v\n   Tls: %v\n   Target: %v\n",
-		cmd.RT, cmd.RPS, time.Duration(cmd.Timeout)*time.Millisecond, cmd.IsTls, cmd.Target)
+		option.RT, option.RPS, time.Duration(option.Timeout)*time.Millisecond, option.IsTls, option.Target)
 	fmt.Println(" Request latency:")
 	fmt.Printf("   Total(s): %v\n", report.Total)
 	fmt.Printf("   Min: %v\n", report.Min)
 	fmt.Printf("   Max: %v\n", report.Max)
+	fmt.Printf("   Avg: %v\n", report.Avg)
+	// fmt.Printf("   Request(s): %v\n", report.RPS)
+
 	fmt.Printf(" Total: [%-5v] OK:[%-5v] Failed:[%-5v]\n", report.JobResult.TotalCnt, report.JobResult.OkCnt, report.JobResult.ErrCnt)
 
 	if report.JobResult.ErrCnt > 0 {

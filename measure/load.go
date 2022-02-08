@@ -3,6 +3,7 @@ package measure
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -16,11 +17,11 @@ func makeHistogramData(report *Report) {
 	}
 }
 
-func minMax(report *Report) {
+func finalCalc(report *Report) {
 
 	var min time.Duration
 	var max time.Duration
-	var total time.Duration
+	var totalDuration time.Duration
 	if len(report.Workers) > 0 {
 		if len(report.Workers[0].Jobs) > 0 {
 			min = report.Workers[0].Jobs[0].Duration
@@ -39,12 +40,24 @@ func minMax(report *Report) {
 			if max < job.Duration {
 				max = job.Duration
 			}
-			total += job.Duration
+			totalDuration += job.Duration
 		}
+
 	}
 
 	report.Min = min
 	report.Max = max
+	average := totalDuration.Seconds() / float64(report.JobResult.TotalCnt)
+	report.Avg = time.Duration(average * float64(time.Second))
+	report.RPS = float64(report.JobResult.TotalCnt) / totalDuration.Seconds()
+
+	log.Printf("total duration: %v", float64(report.JobResult.TotalCnt))
+	log.Printf("total duration: %v", totalDuration)
+	log.Printf("total duration: %v", totalDuration.Seconds())
+
+	dd := 4 / time.Duration(10).Milliseconds()
+	log.Printf("total sdfsdf: %v", dd)
+
 }
 
 func indexOf(code int32, data []*ErrorStatus) int {

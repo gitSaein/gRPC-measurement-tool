@@ -83,6 +83,7 @@ func Jobs(ch_worker chan m.Worker, ch_result chan []*m.Worker, workers []*m.Work
 		select {
 		case worker := <-ch_worker:
 			time.Sleep(1 * time.Second)
+			startAt := time.Now()
 			jobs := []*m.Job{}
 
 			var wg sync.WaitGroup
@@ -95,10 +96,11 @@ func Jobs(ch_worker chan m.Worker, ch_result chan []*m.Worker, workers []*m.Work
 				}()
 			}
 			wg.Wait()
-			workers = append(workers, &m.Worker{Jobs: jobs})
-
+			workers = append(workers, &m.Worker{Jobs: jobs, Duration: time.Since(startAt)})
+			left := worker.RPS - len(jobs)
 			ch_result <- workers
-			ch_left_rps <- worker.RPS - len(jobs)
+			ch_left_rps <- left
+			log.Printf("  done: %v (left: %v)\n", len(jobs), left)
 			fmt.Print("▶ ")
 
 		}
