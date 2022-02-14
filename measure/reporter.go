@@ -132,7 +132,7 @@ func PrintResult(report *Report, option Option) {
 	fmt.Printf("   Min: %v\n", report.Min)
 	fmt.Printf("   Max: %v\n", report.Max)
 	fmt.Printf("   Avg: %v\n", report.Avg)
-	// fmt.Printf("   Request(s): %v\n", report.RPS)
+	fmt.Printf("   Request(s): %v\n", report.RPS)
 
 	fmt.Printf(" Total: [%-5v] OK:[%-5v] Failed:[%-5v]\n", report.JobResult.TotalCnt, report.JobResult.OkCnt, report.JobResult.ErrCnt)
 

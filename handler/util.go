@@ -37,21 +37,22 @@ func ShareRpsPerWorer(rps int, rt int, wno int, w m.Worker) m.Worker {
 
 }
 
-func job(option m.Option, wid uint64) *m.Job {
-	startAt := time.Now()
+func Accept(option m.Option, wid uint64, startAt time.Time) *m.Job {
 	job := &m.Job{JId: c.GetID()}
 	setting := c.SettingOptions(option)
 	HandleReponse(setting.Error, wid, job, m.SetOption, startAt)
+
 	startAt1 := time.Now()
 	conn, err := grpc.DialContext(setting.Context, option.Target, setting.Options...)
 	HandleReponse(err, wid, job, m.DialOpen, startAt1)
+
 	if conn != nil {
 		startAt2 := time.Now()
 		err = conn.Close()
 		HandleReponse(err, wid, job, m.DialClose, startAt2)
 	}
+
 	setting.CancelFunc()
-	job.Duration = time.Since(startAt)
 	job.TimeStamp = time.Now()
 	return job
 
@@ -79,29 +80,54 @@ func Work(rps int, rt int, ch_worker chan m.Worker, workCnt int) {
 }
 
 func Jobs(ch_worker chan m.Worker, ch_result chan []*m.Worker, workers []*m.Worker, ch_left_rps chan int, option m.Option) {
+	// var mux sync.Mutex
+	var s time.Time
 	for {
 		select {
 		case worker := <-ch_worker:
-			time.Sleep(1 * time.Second)
-			startAt := time.Now()
 			jobs := []*m.Job{}
+			delay := time.Second / time.Duration(worker.RPS)
 
 			var wg sync.WaitGroup
 			wg.Add(worker.RPS)
+
+			cnt := 0
+			startAt := time.Now()
 			for i := 0; i < worker.RPS; i++ {
-				go func() {
-					defer wg.Done()
-					j := job(option, worker.WId)
-					jobs = append(jobs, j)
-				}()
+				go func(i int) {
+					startAtd := time.Now()
+					request := Accept(option, worker.WId, s)
+					defer func() {
+						request.Duration = time.Since(startAtd)
+						jobs = append(jobs, request)
+						cnt += 1
+						time.Sleep(delay)
+						// log.Printf("[%d] Job duration: %v / sleep: %v/ now: %v", i+1, request.Duration, delay-request.Duration, time.Now())
+
+						wg.Done()
+
+					}()
+
+				}(i)
+
 			}
 			wg.Wait()
-			workers = append(workers, &m.Worker{Jobs: jobs, Duration: time.Since(startAt)})
-			left := worker.RPS - len(jobs)
-			ch_result <- workers
-			ch_left_rps <- left
-			log.Printf("  done: %v (left: %v)\n", len(jobs), left)
+			end := time.Since(startAt)
+			left_second := time.Second - end
+
+			if left_second > 0 {
+				time.Sleep(left_second)
+			}
+			delay_end := time.Since(startAt)
 			fmt.Print("▶ ")
+			// log.Printf(" t: %v, hit: %v rps: %v, left rps: %v, sleep: %v ----------------------------------------end: %v, left_second: %v, delay_end: %v\n", time.Second, len(jobs), worker.RPS, worker.RPS-len(jobs), delay, end, left_second, delay_end)
+
+			workers = append(workers, &m.Worker{Jobs: jobs, Duration: delay_end})
+
+			ch_result <- workers
+			ch_left_rps <- worker.RPS - len(jobs)
+
+			// log.Printf("  done: %v (left: %v)\n", len(jobs), worker.RPS-len(jobs))
 
 		}
 

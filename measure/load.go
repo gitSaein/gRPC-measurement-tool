@@ -3,6 +3,7 @@ package measure
 import (
 	"bytes"
 	"fmt"
+	"log"
 	"strings"
 	"time"
 )
@@ -39,8 +40,9 @@ func finalCalc(report *Report) {
 			if max < job.Duration {
 				max = job.Duration
 			}
-			totalDuration += job.Duration
+
 		}
+		totalDuration += worker.Duration
 
 	}
 
@@ -48,6 +50,7 @@ func finalCalc(report *Report) {
 	report.Max = max
 	average := totalDuration.Seconds() / float64(report.JobResult.TotalCnt)
 	report.Avg = time.Duration(average * float64(time.Second))
+	log.Printf("total DurationL %v", totalDuration)
 	report.RPS = float64(report.JobResult.TotalCnt) / totalDuration.Seconds()
 
 }

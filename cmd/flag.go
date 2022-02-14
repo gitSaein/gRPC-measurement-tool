@@ -8,7 +8,7 @@ import (
 func Basic() m.Option {
 
 	rt := flag.Int("rt", 100, "request Total count")
-	rps := flag.Int("rps", 50, "rps")
+	rps := flag.Int("rps", 20, "rps")
 	timeout := flag.Int("timeout", 1000, "timeout(ms)")
 	isTls := flag.Bool("isTls", false, "tls 인증여부")
 	call := flag.String("call", "", "call method")

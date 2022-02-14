@@ -39,9 +39,9 @@ func main() {
 	// 2. 1초마다 호출 rps 만큼 호출 하고, total에서 실제 실행된 수 만큼 뺴준다.
 	// 3. total값 만큼 다 호출하면 끝낸다.
 	// totalR := option.RT
-	startInitAt = time.Now()
 	workCnt := h.MakeWorkCount(option.RT, option.RPS)
 	go h.Work(option.RPS, option.RT, ch_worker, workCnt)
+	startInitAt = time.Now()
 	go h.Jobs(ch_worker, ch_result, workers, ch_left_rps, option)
 	go h.CheckLeftRequest(ch_left_rps, ch_worker, workCnt, ch_done, option.RPS)
 	h.Result(ch_worker, ch_result, workCnt, ch_done, startInitAt, option)
